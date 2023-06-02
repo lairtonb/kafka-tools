@@ -13,6 +13,10 @@ using System.Windows;
 using KafkaTools.Common;
 using System.CodeDom;
 using Notifications.Wpf.Core;
+using Serilog;
+using KafkaTools.Logging;
+using Serilog.Events;
+using Microsoft.Extensions.Logging;
 
 namespace KafkaTools
 {
@@ -22,11 +26,7 @@ namespace KafkaTools
     /// </summary>
     public partial class App : Application
     {
-        private readonly IServiceProvider _serviceProvider;
-
         private readonly IHost _host;
-
-        IServiceProvider ServiceProvider { get; set; }
 
         public App()
         {
@@ -37,10 +37,24 @@ namespace KafkaTools
 
         public IHostBuilder CreateHostBuilder()
         {
+            // Initialize Serilog with an in-memory sink
+            var logBufferSink = new CircularBufferSink(10);
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Verbose()
+                .MinimumLevel.Override("System", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .WriteTo.Sink(logBufferSink)
+                .CreateLogger();
+
             return Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((config) =>
                 {
                     config.AddUserSecrets("301fdd9d-69f8-4441-90f8-7d83ddccf23d");
+                })
+                .ConfigureLogging((_hostBuilderContext, loggingBuilder) =>
+                {
+                    loggingBuilder.ClearProviders();
+                    loggingBuilder.AddSerilog();
                 })
                 .ConfigureServices((context, serviceCollection) =>
                 {
@@ -48,6 +62,8 @@ namespace KafkaTools
                     // serviceCollection.AddSingleton<MainWindow>();
                     // serviceCollection.RegisterMainWindow<MainWindow>();
                     // serviceCollection.AddSingleton(typeof(Window), typeof(MainWindow));
+
+                    serviceCollection.AddSingleton<CircularBufferSink>(logBufferSink);
 
                     serviceCollection.AddSingleton<INotificationManager, NotificationManager>();
                     serviceCollection.AddMemoryCache();

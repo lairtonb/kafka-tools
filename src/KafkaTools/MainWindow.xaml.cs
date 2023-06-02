@@ -28,6 +28,10 @@ using KafkaTools.Abstractions;
 using System.Windows.Threading;
 using Notifications.Wpf.Core;
 using KafkaTools.Models;
+using KafkaTools.Logging;
+using Microsoft.Extensions.Logging;
+using KafkaTools.Data.DesignTime;
+using Microsoft.Extensions.Hosting;
 
 namespace KafkaTools
 {
@@ -40,11 +44,14 @@ namespace KafkaTools
 
         public string? Password { get; private set; } = "Yx1DXhdNOZIx/nNTJZ5aF9wQTb/cbcYW43FaVixr/gGd0Ci+AN/y/DYoOecFBlCS";
 
-        private string _selectedBatchExportMessageText = "";
+        // private readonly IConfiguration _config;
 
-        private readonly IConfiguration _config;
         private readonly KafkaServices _kafkaServices;
         private readonly INotificationManager _notificationManager;
+        private readonly ILogger<MainWindow> _logger;
+        private readonly ILoggerFactory _loggerFactory;
+
+        private static CircularBufferSink _logBufferSink;
 
         /// <summary>
         /// Used by XAML to bind to the view model.
@@ -53,13 +60,24 @@ namespace KafkaTools
         {
         }
 
-        public MainWindow(IConfiguration config, KafkaServices kafkaServices, INotificationManager notificationManager)
+        public MainWindow(// IConfiguration config,
+            KafkaServices kafkaServices,
+            INotificationManager notificationManager,
+            CircularBufferSink logBufferSink,
+            ILoggerFactory loggerFactory
+            )
         {
+            _logBufferSink = logBufferSink;
+            _logBufferSink.PropertyChanged += LogBufferSink_PropertyChanged; ;
+
             InitializeComponent();
 
-            _config = config;
+            // _config = config;
             _kafkaServices = kafkaServices;
             _notificationManager = notificationManager;
+
+            _loggerFactory = loggerFactory;
+            _logger = _loggerFactory.CreateLogger<MainWindow>();
 
             DataContext = this;
 
@@ -76,19 +94,18 @@ namespace KafkaTools
          * Data Binding / Bound Properties
          */
 
-        private readonly ObservableCollection<string> _environments = new(
-                new string[] {
-                    "(Not Specified)",
-                    "Development",
-                    "CI",
-                    "Test",
-                    "Prep",
-                    "Sand",
-                    "Production"
+        private readonly ObservableCollection<EnvironmentInfo> _environments = new(
+                new EnvironmentInfo[] {
+                    new EnvironmentInfo { EnvironmentName = "Development" },
+                    new EnvironmentInfo { EnvironmentName = "CI" },
+                    new EnvironmentInfo { EnvironmentName = "Test" },
+                    new EnvironmentInfo { EnvironmentName = "Prep" },
+                    new EnvironmentInfo { EnvironmentName = "Sand" },
+                    new EnvironmentInfo { EnvironmentName = "Production" }
                 }
             );
 
-        public virtual ObservableCollection<string> Environments
+        public virtual ObservableCollection<EnvironmentInfo> Environments
         {
             get
             {
@@ -96,15 +113,15 @@ namespace KafkaTools
             }
         }
 
-        private string _selectedEnvironment = string.Empty;
+        private EnvironmentInfo? _selectedEnvironment = null;
 
-        public string SelectedEnvironment
+        public EnvironmentInfo? SelectedEnvironment
         {
             get { return _selectedEnvironment; }
             set
             {
-                if (value == _selectedEnvironment
-                    || string.IsNullOrEmpty(value)) return;
+                if (value == _selectedEnvironment || _selectedEnvironment == null)
+                    return;
 
                 _selectedEnvironment = value;
 
@@ -134,7 +151,7 @@ namespace KafkaTools
 
         private void TopicsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Messages = SelectedTopic.Messages;
+            Messages = SelectedTopic?.Messages ?? new ObservableCollection<JsonMessage>();
         }
 
         private ObservableCollection<JsonMessage> _selectedMessages = new();
@@ -208,9 +225,9 @@ namespace KafkaTools
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private void EnvironmentsComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void ButtonConnect_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedEnvironment == "(Not Specified)" || string.IsNullOrEmpty(_selectedEnvironment))
+            if (_selectedEnvironment == null)
             {
                 e.Handled = true;
                 return;
@@ -220,22 +237,20 @@ namespace KafkaTools
             // TODO Unsubscribe from all messagens from previous environment
             // TODO Maybe use another visual representation in the future,
             //      like Guilherme did in Aptakube
-
-            var identifier = Guid.NewGuid();
-
-            Task.Run(async () =>
+            await Task.Run(async () =>
             {
                 try
                 {
-                    var topics = await _kafkaServices.GetTopicsAsync(_selectedEnvironment);
+                    var topics = await _kafkaServices.GetTopicsAsync(_selectedEnvironment.EnvironmentName);
                     Dispatcher.Invoke(() =>
                     {
                         Topics.Clear();
                         foreach (var topic in topics)
                         {
+                            var topicLogger = _loggerFactory.CreateLogger(topic);
                             Dispatcher.Invoke(() =>
                             {
-                                Topics.Add(new TopicInfo(topic));
+                                Topics.Add(new TopicInfo(topic, _notificationManager, topicLogger));
                             });
                         }
                     });
@@ -244,13 +259,14 @@ namespace KafkaTools
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        _notificationManager.CloseAsync(identifier);
+                        _logger.LogError(ex, ex.Message);
+                        _notificationManager.CloseAllAsync();
                         _notificationManager.ShowAsync(new NotificationContent
                         {
                             Title = "Error",
                             Message = ex.Message,
                             Type = NotificationType.Error
-                        }, "WindowArea");
+                        }, "WindowArea", TimeSpan.FromSeconds(10));
                         Topics.Clear();
                     });
                 }
@@ -258,17 +274,23 @@ namespace KafkaTools
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        _notificationManager.CloseAsync(identifier);
+                        _logger.LogError(ex, ex.Message);
+                        _notificationManager.CloseAllAsync();
                         _notificationManager.ShowAsync(new NotificationContent
                         {
                             Title = "Error",
                             Message = ex.Message,
                             Type = NotificationType.Error
-                        }, "WindowArea");
+                        }, "WindowArea", TimeSpan.FromSeconds(10));
                         Topics.Clear();
                     });
                 }
             });
+
+        }
+
+        private async void EnvironmentsComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
         }
 
         private void DataGridMessages_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -278,44 +300,20 @@ namespace KafkaTools
 
         private void SubscribeToTopic_Click(object sender, RoutedEventArgs e)
         {
-            var identifier = Guid.NewGuid();
-
-            _notificationManager.ShowAsync(identifier, new NotificationContent
-            {
-                Title = "Information",
-                Message = "Waiting for messages...",
-                Type = NotificationType.Information
-            }, "WindowArea", expirationTime: TimeSpan.MaxValue);
-
             Task.Run(async () =>
             {
-                /***
-                bool isFirstItem = true;
-                
-                _kafkaServices.MessagePublished += (object? sender, MessageEventArgs e) =>
+                if (!SelectedTopic.Subscribed)
                 {
-                    Dispatcher.Invoke(() =>
-                    {
-                        if (isFirstItem)
-                        {
-                            Messages.Clear();
-                            _notificationManager.CloseAsync(identifier);
-                            _notificationManager.ShowAsync(new NotificationContent
-                            {
-                                Title = "Succes",
-                                Message = "Started receiving messages from Kafka",
-                                Type = NotificationType.Success
-                            }, "WindowArea");
-                            isFirstItem = false;
-                        }
-                        Messages.Add(e.Message);
-                    });
-                };
-                */
-
-                _kafkaServices.Subscribe(SelectedTopic.MessagePublished);
-
-                await _kafkaServices.StartConsumingAsync(SelectedEnvironment, SelectedTopic.TopicName);
+                    _kafkaServices.Subscribe(SelectedTopic.MessagePublished);
+                    SelectedTopic.Subscribed = true;
+                    await _kafkaServices.StartConsumingAsync(SelectedEnvironment, SelectedTopic.TopicName);
+                }
+                else
+                {
+                    _kafkaServices.Unsubscribe(SelectedTopic.MessagePublished);
+                    SelectedTopic.Subscribed = false;
+                    // TODO implement stop consumign if it is last topic?
+                }
             });
         }
 
@@ -328,18 +326,44 @@ namespace KafkaTools
         {
             Application.Current.Shutdown(0);
         }
+
+        private async void CopyMessage_Click(object sender, RoutedEventArgs e)
+        {
+            var selectionStart = textBoxMessage.SelectionStart;
+            var selectionLength = textBoxMessage.SelectionLength;
+
+            textBoxMessage.SelectAll();
+            textBoxMessage.Copy();
+
+            await _notificationManager.ShowAsync(new NotificationContent
+            {
+                Title = "Information",
+                Message = "Copied",
+                Type = NotificationType.Information
+            }, "WindowArea", expirationTime: TimeSpan.FromMilliseconds(1200));
+
+            textBoxMessage.SelectionStart = selectionStart;
+            textBoxMessage.SelectionLength = selectionLength;
+        }
+
+        private void LogBufferSink_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(CircularBufferSink.LogEntries))
+            {
+                RaisePropertyChanged(nameof(LogEntries));
+            }
+        }
+
+        public IEnumerable<LogEntry> LogEntries
+        {
+            get
+            {
+                return _logBufferSink.LogEntries;
+            }
+        }
+
+
     }
 
-    public class DesignTimeDataContext
-    {
-        public ObservableCollection<JsonMessage> DesignTimeMessages { get; set; } =
-            new ObservableCollection<JsonMessage>()
-            {
-                new JsonMessage()
-                {
-                    Key = "Sample Key",
-                    Timestamp = new Timestamp(DateTime.Now),
-                }
-            };
-    }
+
 }
