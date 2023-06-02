@@ -15,6 +15,7 @@ using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Confluent.Kafka;
+using KafkaTools.Models;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -70,12 +71,14 @@ namespace KafkaTools.Services
         {
             var envSettings = await GetEnvSettingsAsync(selectedSourceEnvironment!);
 
-            await _notificationManager.ShowAsync(new NotificationContent
+            var identifier = Guid.NewGuid();
+
+            await _notificationManager.ShowAsync(identifier, new NotificationContent
             {
                 Title = "Information",
                 Message = "Getting topics from server.",
                 Type = NotificationType.Information
-            }, "WindowArea");
+            }, "WindowArea", TimeSpan.MaxValue);
 
             var adminConfig = new AdminClientConfig()
             {
@@ -106,16 +109,17 @@ namespace KafkaTools.Services
                         .ToList();
                     topics.AddRange(topicNames);
                 }
+                _dispatcher.BeginInvoke(async () => await _notificationManager.CloseAsync(identifier));
             });
 
             return topics;
         }
 
-        public Dictionary<string, string> currentTopics = new();
+        private readonly Dictionary<string, string> currentTopics = new();
 
-        public async Task StartConsumingAsync(string selectedSourceEnvironment, string selectedTopic)
+        public async Task StartConsumingAsync(EnvironmentInfo selectedSourceEnvironment, string selectedTopic)
         {
-            var consumer = await GetConsumerAsync(selectedSourceEnvironment);
+            var consumer = await GetConsumerAsync(selectedSourceEnvironment.EnvironmentName);
 
             try
             {
@@ -189,6 +193,7 @@ namespace KafkaTools.Services
             }
             catch (Exception ex)
             {
+                await _dispatcher.Invoke(() => _notificationManager.CloseAllAsync());
                 await _notificationManager.ShowAsync(new NotificationContent
                 {
                     Title = "Error",
@@ -385,7 +390,11 @@ namespace KafkaTools.Services
                     AutoOffsetReset = AutoOffsetReset.Earliest,
                     //// AutoOffsetReset = AutoOffsetReset.Latest;
 
-                    // EnablePartitionEof = true,
+                    /*
+                    Emit RD_KAFKA_RESP_ERR__PARTITION_EOF event whenever the consumer reaches the
+                    end of a partition. default: false importance: low                     
+                    */
+                    EnablePartitionEof = true,
 
                     /// A good introduction to the CooperativeSticky assignor and incremental rebalancing:
                     /// https://www.confluent.io/blog/cooperative-rebalancing-in-kafka-streams-consumer-ksqldb/
