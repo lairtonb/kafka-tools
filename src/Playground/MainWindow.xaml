@@ -5,36 +5,41 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Playground"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="450" Width="600">
+
     <Window.Resources>
         <ControlTemplate x:Key="NavigationTemplate" TargetType="Frame">
-            <DockPanel Margin="7">
+            <DockPanel >
                 <StackPanel 
-                    Margin="7"
+                    Margin="0,20,0,10"
+                    HorizontalAlignment="Stretch"
                     Orientation="Horizontal"
-                    DockPanel.Dock="Top"
+                    DockPanel.Dock="Top"                    
                 >
                     <Button 
-                        Content="Avast! Go back!" 
+                        Padding="5,0,5,0"
+                        Content="← Back" 
                         Command="{x:Static NavigationCommands.BrowseBack}" 
                         IsEnabled="{TemplateBinding CanGoBack}" 
                     />
                     <Button 
                         Margin="5,0,0,0"
-                        Content="Forward you dogs!" 
+                        Padding="5,0,5,0"
+                        Content="Forward →" 
                         Command="{x:Static NavigationCommands.BrowseForward}" 
                         IsEnabled="{TemplateBinding CanGoForward}" 
                     />
                 </StackPanel>
                 <Border 
-                    BorderBrush="Green"
-                    Margin="7"
-                    BorderThickness="7"
-                    Padding="7"
-                    CornerRadius="7"
-                    Background="White"
+                    BorderBrush="LightGray"                    
+                    HorizontalAlignment="Stretch"
+                    BorderThickness="0"
+                    CornerRadius="0"
+                    Background="LightGray"
                 >
-                    <ContentPresenter />
+                    <ContentPresenter
+                        HorizontalAlignment="Stretch"
+                        />
                 </Border>
             </DockPanel>
         </ControlTemplate>
@@ -43,15 +48,29 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="180" MinWidth="180" MaxWidth="650"/>
             <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="620"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0">
-            <Button Height="25" Content="Sample 01" Margin="5,20,5,5" Click="Button_Click" />
-            <Button Height="25" Content="Sample 02" Margin="5,0,5,5" Click="Button_Click_1" />
+        <StackPanel Grid.Column="0"
+                    Margin="10,0,10,0">
+            <Button Height="25" 
+                    Content="Sample 01" 
+                    Margin="5,20,5,5"                                         
+                    Click="Button_Click" />
+            <Button Height="25" 
+                    Content="Sample 02" 
+                    Margin="5,0,5,5" 
+                    Click="Button_Click_1" />
         </StackPanel>
-        <GridSplitter Grid.Column="1" HorizontalAlignment="Center" Opacity="5" VerticalAlignment="Stretch" Margin="0,20,0,20" Width="3" Background="BlueViolet"></GridSplitter>
-        <Frame 
-            Template="{StaticResource NavigationTemplate}"
-            NavigationUIVisibility="Visible" Name="FrameContent" Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <GridSplitter Grid.Column="1" 
+                      HorizontalAlignment="Center" 
+                      Opacity="50" 
+                      VerticalAlignment="Stretch" 
+                      Width="2" 
+                      Background="LightBlue" />
+        <Frame Grid.Column="2"
+               Margin="10,0,10,10"
+               Template="{StaticResource NavigationTemplate}"
+               NavigationUIVisibility="Visible" 
+               Name="FrameContent" />
     </Grid>
 </Window>
