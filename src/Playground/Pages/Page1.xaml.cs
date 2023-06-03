@@ -13,14 +13,14 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Playground.Samples
+namespace Playground.Pages
 {
     /// <summary>
-    /// Interaction logic for Page2.xaml
+    /// Interaction logic for Page1.xaml
     /// </summary>
-    public partial class Page2 : Page
+    public partial class Page1 : Page
     {
-        public Page2()
+        public Page1()
         {
             InitializeComponent();
         }
