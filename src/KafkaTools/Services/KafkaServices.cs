@@ -36,6 +36,7 @@ namespace KafkaTools.Services
         private readonly INotificationManager _notificationManager;
 
         private readonly Dispatcher _dispatcher;
+        private CancellationTokenSource _cancellationTokenSource;
 
         public object JsonConvert { get; private set; }
 
@@ -47,6 +48,8 @@ namespace KafkaTools.Services
             dispatcher ??= Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
 
             _dispatcher = dispatcher;
+
+            _cancellationTokenSource = new CancellationTokenSource();
         }
 
         private event EventHandler<MessageEventArgs> MessagePublished;
@@ -117,6 +120,25 @@ namespace KafkaTools.Services
 
         private readonly Dictionary<string, string> currentTopics = new();
 
+        public async Task StopConsumingAsync(EnvironmentInfo selectedSourceEnvironment, string selectedTopic)
+        {
+            // Get consumer from cache or new consumer
+            var consumer = await GetConsumerAsync(selectedSourceEnvironment.EnvironmentName);
+
+            // Remove topic from current topics
+            if (currentTopics.ContainsKey(selectedTopic))
+            {
+                currentTopics.Remove(selectedTopic);
+            }
+
+            // Update the topic subscription.
+            // Any previous subscription will be unassigned and
+            // the new subscription will replace it.
+            // If the new subscription list is empty, it is
+            // treated the same as Unsubscribe.
+            consumer.Subscribe(currentTopics.Select(t => t.Value));
+        }
+
         public async Task StartConsumingAsync(EnvironmentInfo selectedSourceEnvironment, string selectedTopic)
         {
             var consumer = await GetConsumerAsync(selectedSourceEnvironment.EnvironmentName);
@@ -129,14 +151,23 @@ namespace KafkaTools.Services
                     consumer.Subscribe(currentTopics.Select(t => t.Value));
                 }
 
-                CancellationTokenSource cts = new CancellationTokenSource();
-
                 // Why should we want this?
                 // cts.CancelAfter(TimeSpan.FromSeconds(60));
 
                 while (true)
                 {
-                    var consumeResult = consumer.Consume(cts.Token);
+                    var consumeResult = consumer.Consume(_cancellationTokenSource.Token);
+
+                    // Check if a stop signal is received
+                    if (_cancellationTokenSource.Token.IsCancellationRequested)
+                    {
+                        // Reset the token, to allow the consumer to be restarted
+                        _cancellationTokenSource = new CancellationTokenSource();
+
+                        // Stop consuming and disconnect
+                        consumer.Close();
+                        break;
+                    }
 
                     if (consumeResult == null)
                     {
@@ -145,11 +176,12 @@ namespace KafkaTools.Services
 
                     if (consumeResult.IsPartitionEOF)
                     {
-                        // Notify loaded all messages
+                        // Should we notify that we consumed all messages available so far?
                         continue;
                     }
 
                     /***
+                     * Required because of Confluent Schema Registry framing
                     var message = Regex.Replace(_selectedMessage.Value, @"^[^{]*?(?={)", string.Empty,
                         RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
@@ -183,9 +215,6 @@ namespace KafkaTools.Services
                     message.Key = consumeResult.Message.Key;
                     message.Value = valueString;
                     message.Timestamp = consumeResult.Message.Timestamp;
-
-                    if (cts.Token.IsCancellationRequested)
-                        break;
 
                     MessagePublished?.Invoke(this, new MessageEventArgs(consumeResult.Topic,
                         consumeResult.Offset, message));

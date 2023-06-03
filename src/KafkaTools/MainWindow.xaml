@@ -8,8 +8,11 @@
         xmlns:local="clr-namespace:KafkaTools"
         xmlns:valueConverters="clr-namespace:KafkaTools.ValueConverters"
         xmlns:notifications="clr-namespace:Notifications.Wpf.Core.Controls;assembly=Notifications.Wpf.Core"
-        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"        
         xmlns:designTime="clr-namespace:KafkaTools.Data.DesignTime"
+        
+        xmlns:Media="clr-namespace:System.Windows.Media;assembly=PresentationCore"
+        xmlns:Animations="clr-namespace:System.Windows.Media.Animation;assembly=PresentationCore"
         
         ResizeMode="CanResizeWithGrip"
         Title="Kafka Tools" 
@@ -25,9 +28,15 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="DataGridStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <local:TimestampConverter x:Key="TimestampConverter" />
+            <local:TimestampConverter x:Key="TimestampConverter" />            
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <valueConverters:BooleanNegationConverter x:Key="BooleanNegationConverter" />
+            <valueConverters:ConnectionStatusConnectingToVisibilityConverter x:Key="ConnectingToVisibilityConverter" />
+            <valueConverters:ConnectionStatusConnectingToBooleanConverter x:Key="ConnectingToBooleanConverter" />
+            <valueConverters:ConnectionStatusToBooleanConverter x:Key="ConnectionStatusToBooleanConverter" />
+            <valueConverters:IsOkToSubscribeConverter x:Key="IsOkToSubscribeConverter" />            
             <BitmapImage x:Key="PlayImage" UriSource="Images/icons8-play-16.png" />
+            <BitmapImage x:Key="PlayImageDisabled" UriSource="Images/PlayDisabled.png" />
             <BitmapImage x:Key="PauseImage" UriSource="Images/icons8-pause-16.png" />
         </ResourceDictionary>
     </Window.Resources>    
@@ -72,36 +81,104 @@
                             </DockPanel>
                             <Grid Grid.Row="1" Background="#EEE">
                                 <Label Content="Environment" HorizontalAlignment="Left" Margin="11,10,0,0" VerticalAlignment="Top" Padding="0,5,5,5"/>
-                                <ComboBox Name="environmentsComboBox"                              
-                                    ItemsSource="{Binding Path=Environments}" 
-                                    SelectedItem="{Binding Path=SelectedEnvironment, ValidatesOnDataErrors=True}"
-                                    HorizontalAlignment="Left" 
-                                    Margin="11,36,0,0" 
-                                    VerticalAlignment="Top" Width="130" SelectionChanged="EnvironmentsComboBox_SelectionChanged" />
-                                <Button Name="buttonConnect"
-                                        Content="Disconnect"
-                                        HorizontalContentAlignment="Left"
-                                        HorizontalAlignment="Left" 
+                                <ComboBox Name="environmentsComboBox"
+                                          ItemsSource="{Binding Path=Environments}" 
+                                          SelectedItem="{Binding Path=SelectedEnvironment, ValidatesOnDataErrors=True}"
+                                          DisplayMemberPath="EnvironmentName"
+                                          HorizontalAlignment="Left" 
+                                          Margin="11,36,0,0" 
+                                          VerticalAlignment="Top" 
+                                          Width="132" 
+                                          SelectionChanged="EnvironmentsComboBox_SelectionChanged" />
+                                <Button HorizontalAlignment="Left" 
                                         VerticalAlignment="Top"
-                                        Margin="150,37,10,0"
-                                        Padding="8,0,5,0"
-                                        Width="80" Click="ButtonConnect_Click"                                        
-                                        ></Button>
+                                        Margin="150,36,10,0"
+                                        Width="90" 
+                                        Height="22"                                        
+                                        Click="ButtonConnect_Click"                                        
+                                        DataContext="{Binding Path=SelectedEnvironment}"
+                                        IsEnabled="{Binding Path=Status, Converter={StaticResource ConnectingToBooleanConverter}}">
+                                    <StackPanel
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Left"                                        
+                                        Margin="0,0,0,0">
+                                        <Image
+                                            Source="/images/loading.png"
+                                            Width="15"
+                                            Height="15"
+                                            Margin="0,0,0,0"
+                                            HorizontalAlignment="Left"
+                                            RenderTransformOrigin="0.5, 0.5" 
+                                            Visibility="{Binding Status, Converter={StaticResource ConnectingToVisibilityConverter}}">
+                                            <Image.RenderTransform>
+                                                <RotateTransform x:Name="noFreeze" />
+                                            </Image.RenderTransform>
+                                            <Image.Triggers>
+                                                <EventTrigger RoutedEvent="Loaded">
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation
+                                                                Storyboard.TargetProperty="(Image.RenderTransform).(RotateTransform.Angle)"
+                                                                To="360" Duration="0:0:1" RepeatBehavior="Forever" />
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </EventTrigger>
+                                            </Image.Triggers>
+                                        </Image>
+                                        <TextBlock Margin="2,0,0,0" 
+                                                   HorizontalAlignment="Left">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="Connect" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Disconnected">
+                                                            <Setter Property="Text" Value="Connect" />
+                                                        </DataTrigger>                                                        
+                                                        <DataTrigger Binding="{Binding Status}" Value="Connecting">
+                                                            <Setter Property="Text" Value="Working..." />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Connected">
+                                                            <Setter Property="Text" Value="Disconnect" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>                                            
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Button>
+                                <Label HorizontalAlignment="Left"                                        
+                                       VerticalAlignment="Top" 
+                                       Margin="235,36,10,0"
+                                       MinWidth="80"     
+                                       MinHeight="22"
+                                       DataContext="{Binding Path=SelectedEnvironment}"
+                                       Content="{Binding Path=EnvironmentName}" 
+                                       Visibility="Collapsed"
+                                       Padding="0,5,5,5"/>
                                 <Button Name="manageEnvironmentsButton" 
                                         Content="Manage ..." 
-                                        d:Visibility="Visible" Visibility="Hidden"
+                                        d:Visibility="Collapsed" 
+                                        Visibility="Collapsed"
                                         HorizontalAlignment="Right"
-                                        Margin="10,37,10,0" 
-                                        Padding="5,0,5,0"
-                                    VerticalAlignment="Top"  />
-                                <Label Content="Topics" HorizontalAlignment="Left" 
-                                    Margin="10,63,10,0" VerticalAlignment="Top" Width="48" 
-                                    Padding="0,5,5,5"/>
-                                <TextBox Name="filterTopicTextBox" Margin="10,89,10,0"                              
-                                    TextWrapping="Wrap" VerticalAlignment="Top"/>
+                                        Margin="10,36,10,0" 
+                                        Height="22"
+                                        Padding="8,0,8,0"
+                                        VerticalAlignment="Top"  />
+                                <Label Content="Topics" 
+                                       HorizontalAlignment="Left" 
+                                       VerticalAlignment="Top" 
+                                       Width="48" 
+                                       Margin="10,63,10,0" 
+                                       Padding="0,5,5,5"/>
+                                <TextBox Name="FilterTopicsTextBox" 
+                                         Margin="10,89,10,0"                              
+                                         TextWrapping="Wrap" 
+                                         VerticalAlignment="Top"
+                                         Text="{Binding TopicNameFilter, UpdateSourceTrigger=PropertyChanged}"
+                                         />
                                 <ListBox x:Name="TopicsListBox"
-                                        ItemsSource="{Binding Topics}" 
-                                        SelectedItem="{Binding SelectedTopic}"  
+                                        ItemsSource="{Binding TopicsCollectionView}"
+                                        SelectedItem="{Binding SelectedEnvironment.SelectedTopic}"
                                         d:ItemsSource="{d:SampleData ItemCount=5}" 
                                         Margin="10,112,10,10" SelectionChanged="TopicsListBox_SelectionChanged">
                                     <ListBox.ItemTemplate>
@@ -145,17 +222,6 @@
                                 </Grid.ColumnDefinitions>
                                 <Button 
                                     Grid.Column="0"
-                                    Name="subscribeToTopicOld" 
-                                    Content="Subscribe" 
-                                    HorizontalAlignment="Left" 
-                                    VerticalAlignment="Center" 
-                                    Width="75" 
-                                    Margin="10,0,0,0" 
-                                    Click="SubscribeToTopic_Click"
-                                    Visibility="Collapsed"
-                                />
-                                <Button 
-                                    Grid.Column="0"
                                     Name="subscribeToTopic" 
                                     Width="21" 
                                     Height="21"                                         
@@ -163,17 +229,32 @@
                                     HorizontalAlignment="Left" 
                                     VerticalAlignment="Center"                                         
                                     Click="SubscribeToTopic_Click"
-                                    IsEnabled="{Binding SelectedTopic.Subscribed, Converter={StaticResource BooleanNegationConverter}}">
+                                    d:IsEnabled="False">
                                     <d:Button.Content>
                                         <Image Source="Images/icons8-play-16.png" />
                                     </d:Button.Content>
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource IsOkToSubscribeConverter}">
+                                            <Binding Path="SelectedEnvironment.Status"/>
+                                            <Binding Path="SelectedEnvironment.SelectedTopic" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.Content>
-                                        <Image>
+                                        <Image Opacity="0.9">
                                             <Image.Style>
                                                 <Style TargetType="Image">
                                                     <Setter Property="Source" Value="{StaticResource PlayImage}" />
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding SelectedTopic.Subscribed}" Value="True">
+                                                        <DataTrigger Value="False">
+                                                            <DataTrigger.Binding>
+                                                                <MultiBinding Converter="{StaticResource IsOkToSubscribeConverter}">
+                                                                    <Binding Path="SelectedEnvironment.Status"/>
+                                                                    <Binding Path="SelectedEnvironment.SelectedTopic" />
+                                                                </MultiBinding>
+                                                            </DataTrigger.Binding>
+                                                            <Setter Property="Source" Value="{StaticResource PlayImageDisabled}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding SelectedEnvironment.SelectedTopic.Subscribed}" Value="True">
                                                             <Setter Property="Source" Value="{StaticResource PauseImage}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
@@ -191,7 +272,7 @@
                                     Padding="0,5,5,5">
                                     <TextBlock 
                                         d:Text="development-sample-topic-name-that-is-very-long-internal"
-                                        Text="{Binding SelectedTopic.TopicName}" 
+                                        Text="{Binding SelectedEnvironment.SelectedTopic.TopicName}" 
                                         TextTrimming="CharacterEllipsis" />
                                 </Label>
                             </Grid>
@@ -199,7 +280,7 @@
                                 <DataGrid  
                                     Name="dataGridMessages" AutoGenerateColumns="False" 
                                     SelectionChanged="DataGridMessages_SelectionChanged"
-                                    ItemsSource="{Binding Path=SelectedTopic.Messages}"
+                                    ItemsSource="{Binding Path=SelectedEnvironment.SelectedTopic.Messages}"
                                     SelectedItem="{Binding SelectedMessage}"
                                     Style="{StaticResource {x:Type DataGrid}}"
                                     Margin="10,0,10,10" 

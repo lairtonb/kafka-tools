@@ -29,8 +29,6 @@ namespace KafkaTools.Models
 
         public string TopicName { get; private set; }
 
-
-
         public long Offset { get; private set; }
 
         public ObservableCollection<JsonMessage> Messages { get; } =
@@ -90,21 +88,29 @@ namespace KafkaTools.Models
                 {
                     this.subscribed = value;
 
-                    _notificationManager.ShowAsync(identifier, new NotificationContent
+                    if (this.subscribed)
                     {
-                        Title = "Information",
-                        Message = $"Waiting messages from \"{TopicName}\"",
-                        Type = NotificationType.Information
-                    }, "WindowArea", TimeSpan.MaxValue);
-                    _logger.LogInformation("Waiting messages from \"{TopicName}\"", TopicName);
-                    OnPropertyChanged(nameof(Subscribed));
+                        _notificationManager.ShowAsync(identifier, new NotificationContent
+                        {
+                            Title = "Information",
+                            Message = $"Waiting messages from \"{TopicName}\"",
+                            Type = NotificationType.Information
+                        }, "WindowArea", TimeSpan.MaxValue);
+                        _logger.LogInformation("Subscribed to \"{TopicName}\"", TopicName);
+                    }
+                    else
+                    {
+                        Dispatcher.CurrentDispatcher.Invoke(() => _notificationManager.CloseAsync(identifier));
+                        _logger.LogInformation("Unsubscribed from \"{TopicName}\"", TopicName);
+                    }
+                    RaisePropertyChanged(nameof(Subscribed));
                 }
             }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        private void OnPropertyChanged(string propertyName)
+        private void RaisePropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

@@ -12,6 +12,8 @@
     <None Remove="Images\icons8-pause-16.png" />
     <None Remove="Images\icons8-play-16.png" />
     <None Remove="Images\icons8-search-17.png" />
+    <None Remove="Images\loading.png" />
+    <None Remove="Images\PlayDisabled.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +40,8 @@
     <Resource Include="Images\icons8-search-17.png">
       <CopyToOutputDirectory></CopyToOutputDirectory>
     </Resource>
+    <Resource Include="Images\loading.png" />
+    <Resource Include="Images\PlayDisabled.png" />
   </ItemGroup>
 
   <ItemGroup>

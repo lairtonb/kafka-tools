@@ -7,14 +7,13 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Markup;
 
-namespace KafkaTools.Common
+namespace KafkaTools.MarkupExtensions
 {
     /*
      * Usage:
      * DataContext="{ext:TypeLocator {x:Type cil:IViewModel}}"
      *
      */
-
 
     public class TypeLocatorExtension : MarkupExtension
     {

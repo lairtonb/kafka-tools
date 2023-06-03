@@ -44,12 +44,12 @@ namespace KafkaTools
 
         public string? Password { get; private set; } = "Yx1DXhdNOZIx/nNTJZ5aF9wQTb/cbcYW43FaVixr/gGd0Ci+AN/y/DYoOecFBlCS";
 
-        // private readonly IConfiguration _config;
-
+        private readonly IConfiguration _config;
         private readonly KafkaServices _kafkaServices;
         private readonly INotificationManager _notificationManager;
         private readonly ILogger<MainWindow> _logger;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly ObservableCollection<EnvironmentInfo> _environments;
 
         private static CircularBufferSink _logBufferSink;
 
@@ -60,7 +60,7 @@ namespace KafkaTools
         {
         }
 
-        public MainWindow(// IConfiguration config,
+        public MainWindow(IConfiguration config,
             KafkaServices kafkaServices,
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
@@ -72,38 +72,28 @@ namespace KafkaTools
 
             InitializeComponent();
 
-            // _config = config;
+            _config = config;
             _kafkaServices = kafkaServices;
             _notificationManager = notificationManager;
 
             _loggerFactory = loggerFactory;
             _logger = _loggerFactory.CreateLogger<MainWindow>();
 
+            // TODO: Get this from the config file.
+            _environments = new ObservableCollection<EnvironmentInfo>(new EnvironmentInfo[] {
+                    new EnvironmentInfo("Development", notificationManager, loggerFactory.CreateLogger("Development")),
+                    new EnvironmentInfo("CI", notificationManager, loggerFactory.CreateLogger("CI")),
+                    new EnvironmentInfo("Test", notificationManager, loggerFactory.CreateLogger("Test")),
+                    new EnvironmentInfo("Prep", notificationManager, loggerFactory.CreateLogger("Prep")),
+                    new EnvironmentInfo("Sandbox", notificationManager, loggerFactory.CreateLogger("Sandbox")),
+                    new EnvironmentInfo("Production", notificationManager, loggerFactory.CreateLogger("Production"))
+                });
+
+            // Need to think a little better how to handle this.
+            _selectedEnvironment = _environments[0];
+
             DataContext = this;
-
-            // Development
-            /*
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddUserSecrets(userSecretsId: "301fdd9d-69f8-4441-90f8-7d83ddccf23d")
-                .Build();
-            */
         }
-
-        /*
-         * Data Binding / Bound Properties
-         */
-
-        private readonly ObservableCollection<EnvironmentInfo> _environments = new(
-                new EnvironmentInfo[] {
-                    new EnvironmentInfo { EnvironmentName = "Development" },
-                    new EnvironmentInfo { EnvironmentName = "CI" },
-                    new EnvironmentInfo { EnvironmentName = "Test" },
-                    new EnvironmentInfo { EnvironmentName = "Prep" },
-                    new EnvironmentInfo { EnvironmentName = "Sand" },
-                    new EnvironmentInfo { EnvironmentName = "Production" }
-                }
-            );
 
         public virtual ObservableCollection<EnvironmentInfo> Environments
         {
@@ -113,14 +103,14 @@ namespace KafkaTools
             }
         }
 
-        private EnvironmentInfo? _selectedEnvironment = null;
+        private EnvironmentInfo _selectedEnvironment;
 
-        public EnvironmentInfo? SelectedEnvironment
+        public EnvironmentInfo SelectedEnvironment
         {
             get { return _selectedEnvironment; }
             set
             {
-                if (value == _selectedEnvironment || _selectedEnvironment == null)
+                if (value == _selectedEnvironment)
                     return;
 
                 _selectedEnvironment = value;
@@ -129,29 +119,73 @@ namespace KafkaTools
             }
         }
 
-        public ObservableCollection<TopicInfo> Topics { get; set; } =
-            new ObservableCollection<TopicInfo>();
+        private ObservableCollection<TopicInfo> _topics = new();
 
-        private TopicInfo? _selectedTopic = default;
-
-        public TopicInfo SelectedTopic
+        public ObservableCollection<TopicInfo> Topics
         {
-            get { return _selectedTopic; }
+            get { return _topics; }
             set
             {
-                if (_selectedTopic == value)
+                if (_topics != value)
                 {
-                    return;
+                    _topics = value;
+                    RaisePropertyChanged(nameof(Topics));
                 }
-                _selectedTopic = value;
-
-                RaisePropertyChanged(nameof(SelectedTopic));
             }
+        }
+
+        private ICollectionView topicsCollectionView;
+
+        public ICollectionView TopicsCollectionView
+        {
+            get { return topicsCollectionView; }
+            set
+            {
+                if (topicsCollectionView != value)
+                {
+                    topicsCollectionView = value;
+                    RaisePropertyChanged(nameof(TopicsCollectionView));
+                }
+            }
+        }
+
+        private string topicNameFilter;
+        public string TopicNameFilter
+        {
+            get { return topicNameFilter; }
+            set
+            {
+                if (topicNameFilter != value)
+                {
+                    topicNameFilter = value;
+                    RaisePropertyChanged(nameof(TopicNameFilter));
+                    ApplyFilter();
+                }
+            }
+        }
+
+        private void ApplyFilter()
+        {
+            TopicsCollectionView.Filter = item => string.IsNullOrEmpty(TopicNameFilter) || ((TopicInfo)item).TopicName.Contains(TopicNameFilter);
+            TopicsCollectionView.Refresh();
+        }
+
+        private void FilterTopicsTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            /*
+            if (sender is TextBox textBox)
+            {
+                string filterText = textBox.Text;
+
+                TopicsCollectionView.Filter = item => string.IsNullOrEmpty(filterText) || ((string)item).Contains(filterText);
+                TopicsCollectionView.Refresh();
+            }
+            */
         }
 
         private void TopicsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Messages = SelectedTopic?.Messages ?? new ObservableCollection<JsonMessage>();
+            Messages = _selectedEnvironment.SelectedTopic?.Messages ?? new ObservableCollection<JsonMessage>();
         }
 
         private ObservableCollection<JsonMessage> _selectedMessages = new();
@@ -225,72 +259,97 @@ namespace KafkaTools
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private async void ButtonConnect_Click(object sender, RoutedEventArgs e)
+        private void ButtonConnect_Click(object sender, RoutedEventArgs e)
         {
+            // TODO Show some progress indicator
+            // TODO Unsubscribe from all messagens from previous environment
+            // TODO Maybe use another visual representation in the future,
+            //      like Guilherme did in Aptakube
+
             if (_selectedEnvironment == null)
             {
                 e.Handled = true;
                 return;
             }
 
-            // TODO Show some progress indicator
-            // TODO Unsubscribe from all messagens from previous environment
-            // TODO Maybe use another visual representation in the future,
-            //      like Guilherme did in Aptakube
-            await Task.Run(async () =>
+            if (this.SelectedEnvironment.Status != ConnectionStatus.Connected)
             {
-                try
+                _ = Connect();
+            }
+            else
+            {
+                _ = Disconnect();
+            }
+        }
+
+        private async Task Disconnect()
+        {
+
+            await Task.CompletedTask;
+        }
+
+        private async Task Connect()
+        {
+            try
+            {
+                Dispatcher.Invoke(() => _selectedEnvironment.Status = ConnectionStatus.Connecting);
+
+                var topics = await _kafkaServices.GetTopicsAsync(_selectedEnvironment.EnvironmentName);
+
+                Dispatcher.Invoke(() =>
                 {
-                    var topics = await _kafkaServices.GetTopicsAsync(_selectedEnvironment.EnvironmentName);
-                    Dispatcher.Invoke(() =>
+                    Topics.Clear();
+
+                    _selectedEnvironment.Status = ConnectionStatus.Connected;
+                    foreach (var topic in topics)
                     {
-                        Topics.Clear();
-                        foreach (var topic in topics)
+                        var topicLogger = _loggerFactory.CreateLogger(topic);
+                        Dispatcher.Invoke(() =>
                         {
-                            var topicLogger = _loggerFactory.CreateLogger(topic);
-                            Dispatcher.Invoke(() =>
-                            {
-                                Topics.Add(new TopicInfo(topic, _notificationManager, topicLogger));
-                            });
-                        }
-                    });
-                }
-                catch (KafkaException ex) when (ex.Error.IsLocalError)
+                            Topics.Add(new TopicInfo(topic, _notificationManager, topicLogger));
+                        });
+                    }
+
+                    TopicsCollectionView = CollectionViewSource.GetDefaultView(Topics);
+                    TopicsCollectionView.Refresh();
+                });
+            }
+            catch (KafkaException ex) when (ex.Error.IsLocalError)
+            {
+                Dispatcher.Invoke(() =>
                 {
-                    Dispatcher.Invoke(() =>
+                    _logger.LogError(ex, ex.Message);
+                    _notificationManager.CloseAllAsync();
+                    _notificationManager.ShowAsync(new NotificationContent
                     {
-                        _logger.LogError(ex, ex.Message);
-                        _notificationManager.CloseAllAsync();
-                        _notificationManager.ShowAsync(new NotificationContent
-                        {
-                            Title = "Error",
-                            Message = ex.Message,
-                            Type = NotificationType.Error
-                        }, "WindowArea", TimeSpan.FromSeconds(10));
-                        Topics.Clear();
-                    });
-                }
-                catch (Exception ex)
+                        Title = "Error",
+                        Message = ex.Message,
+                        Type = NotificationType.Error
+                    }, "WindowArea", TimeSpan.FromSeconds(10));
+                    Topics.Clear();
+                });
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() =>
                 {
-                    Dispatcher.Invoke(() =>
+                    _logger.LogError(ex, ex.Message);
+                    _notificationManager.CloseAllAsync();
+                    _notificationManager.ShowAsync(new NotificationContent
                     {
-                        _logger.LogError(ex, ex.Message);
-                        _notificationManager.CloseAllAsync();
-                        _notificationManager.ShowAsync(new NotificationContent
-                        {
-                            Title = "Error",
-                            Message = ex.Message,
-                            Type = NotificationType.Error
-                        }, "WindowArea", TimeSpan.FromSeconds(10));
-                        Topics.Clear();
-                    });
-                }
-            });
+                        Title = "Error",
+                        Message = ex.Message,
+                        Type = NotificationType.Error
+                    }, "WindowArea", TimeSpan.FromSeconds(10));
+                    Topics.Clear();
+                });
+            }
 
         }
 
         private async void EnvironmentsComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Method intentionally left empty.
         }
 
         private void DataGridMessages_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -302,16 +361,16 @@ namespace KafkaTools
         {
             Task.Run(async () =>
             {
-                if (!SelectedTopic.Subscribed)
+                if (!_selectedEnvironment.SelectedTopic.Subscribed)
                 {
-                    _kafkaServices.Subscribe(SelectedTopic.MessagePublished);
-                    SelectedTopic.Subscribed = true;
-                    await _kafkaServices.StartConsumingAsync(SelectedEnvironment, SelectedTopic.TopicName);
+                    _kafkaServices.Subscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
+                    _selectedEnvironment.SelectedTopic.Subscribed = true;
+                    await _kafkaServices.StartConsumingAsync(SelectedEnvironment, _selectedEnvironment.SelectedTopic.TopicName);
                 }
                 else
                 {
-                    _kafkaServices.Unsubscribe(SelectedTopic.MessagePublished);
-                    SelectedTopic.Subscribed = false;
+                    _kafkaServices.Unsubscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
+                    _selectedEnvironment.SelectedTopic.Subscribed = false;
                     // TODO implement stop consumign if it is last topic?
                 }
             });
@@ -361,8 +420,6 @@ namespace KafkaTools
                 return _logBufferSink.LogEntries;
             }
         }
-
-
     }
 
 
