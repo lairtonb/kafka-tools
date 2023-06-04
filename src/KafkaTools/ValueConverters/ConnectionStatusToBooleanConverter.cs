@@ -32,7 +32,7 @@ namespace KafkaTools.ValueConverters
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             // Access the values passed from the bindings
-            bool isConnected = values[0] is ConnectionStatus && ((ConnectionStatus)values[0]) == ConnectionStatus.Connected;
+            bool isConnected = values[0] is ConnectionStatus status && status == ConnectionStatus.Connected;
             bool isTopicSelected = values[1] is TopicInfo;
 
             // Perform the desired logic based on the values
