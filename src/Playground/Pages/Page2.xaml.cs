@@ -37,7 +37,7 @@ namespace Playground.Pages
             DataContext = this;
         }
 
-        private ObservableCollection<string> myItems = new ObservableCollection<string>();
+        private ObservableCollection<string> myItems = new();
         public ObservableCollection<string> MyItems
         {
             get { return myItems; }

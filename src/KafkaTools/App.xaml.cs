@@ -54,14 +54,9 @@ namespace KafkaTools
                 {
                     loggingBuilder.ClearProviders();
                     loggingBuilder.AddSerilog();
-                })
+                })*/
                 .ConfigureServices((context, serviceCollection) =>
                 {
-                    // serviceCollection.AddSingleton(typeof(Window), 
-                    // serviceCollection.AddSingleton<MainWindow>();
-                    // serviceCollection.RegisterMainWindow<MainWindow>();
-                    // serviceCollection.AddSingleton(typeof(Window), typeof(MainWindow));
-
                     serviceCollection.AddSingleton<CircularBufferSink>(logBufferSink);
 
                     serviceCollection.AddSingleton<INotificationManager, NotificationManager>();
