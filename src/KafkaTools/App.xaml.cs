@@ -36,25 +36,29 @@ namespace KafkaTools
 
         public IHostBuilder CreateHostBuilder()
         {
-            // Initialize Serilog with an in-memory sink
             var logBufferSink = new CircularBufferSink(10);
+
+            Serilog.Debugging.SelfLog.Enable(msg => System.IO.File.AppendAllText("logs\\serilog-debug.log", msg));
+
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Verbose()
                 .MinimumLevel.Override("System", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                .WriteTo.Sink(logBufferSink)
-                .CreateLogger();
+                .CreateBootstrapLogger();
 
             return Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((config) =>
                 {
                     config.AddUserSecrets("301fdd9d-69f8-4441-90f8-7d83ddccf23d");
                 })
-                .ConfigureLogging((_hostBuilderContext, loggingBuilder) =>
+                .UseSerilog((hostingContext, loggerConfiguration) =>
                 {
-                    loggingBuilder.ClearProviders();
-                    loggingBuilder.AddSerilog();
-                })*/
+                    // Initialize Serilog with an in-memory sink, but load the
+                    // other settings from appsettings
+                    _ = loggerConfiguration
+                        .ReadFrom.Configuration(hostingContext.Configuration)
+                        .WriteTo.Sink(logBufferSink);
+                })
                 .ConfigureServices((context, serviceCollection) =>
                 {
                     serviceCollection.AddSingleton<CircularBufferSink>(logBufferSink);
