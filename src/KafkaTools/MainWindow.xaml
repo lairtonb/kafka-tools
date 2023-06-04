@@ -88,8 +88,7 @@
                                           HorizontalAlignment="Left" 
                                           Margin="11,36,0,0" 
                                           VerticalAlignment="Top" 
-                                          Width="132" 
-                                          SelectionChanged="EnvironmentsComboBox_SelectionChanged" />
+                                          Width="132" />
                                 <Button HorizontalAlignment="Left" 
                                         VerticalAlignment="Top"
                                         Margin="150,36,10,0"
@@ -278,35 +277,34 @@
                             </Grid>
                             <Grid Grid.Row="2" Background="#FFF9F9F9">
                                 <DataGrid  
-                                    Name="dataGridMessages" AutoGenerateColumns="False" 
-                                    SelectionChanged="DataGridMessages_SelectionChanged"
+                                    Name="dataGridMessages" AutoGenerateColumns="False"
                                     ItemsSource="{Binding Path=SelectedEnvironment.SelectedTopic.Messages}"
                                     SelectedItem="{Binding SelectedMessage}"
                                     Style="{StaticResource {x:Type DataGrid}}"
                                     Margin="10,0,10,10" 
-                                    SelectionMode="Single" 
+                                    SelectionMode="Single"                                     
                                     CanUserAddRows="False" 
                                     CanUserDeleteRows="False" 
-                                    CanUserResizeRows="False" 
+                                    CanUserResizeRows="False"                                     
                                     AlternationCount="1" 
                                     AlternatingRowBackground="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" 
                                     HorizontalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}" 
                                     VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}">
-
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="Auto" />
+                                        <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="Auto" />
                                         <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, Converter={StaticResource TimestampConverter}}" Width="Auto" />
                                     </DataGrid.Columns>
                                     <d:DataGrid.ItemsSource>
                                         <x:Array Type="{x:Type local:JsonMessage}">
                                             <!-- Design-time data items -->
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Value="5/30/2023 8:15:51 PM" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Value="3" />
+                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="1" Value="5/30/2023 8:15:51 PM" />
+                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="2" Value="3" />
+                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="3" Value="3" />
+                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="4" Value="3" />
+                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="5" Value="3" />
+                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="6" Value="3" />
+                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="7" Value="3" />
                                             <!-- Add more items as needed -->
                                         </x:Array>
                                     </d:DataGrid.ItemsSource>
@@ -349,6 +347,7 @@
                                 <TextBox 
                                     Name="textBoxMessage"
                                     TextWrapping="Wrap"
+                                    IsReadOnly="True"
                                     Text="{Binding 
                                         SelectedMessageText, 
                                         Mode=TwoWay, 

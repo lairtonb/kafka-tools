@@ -170,19 +170,6 @@ namespace KafkaTools
             TopicsCollectionView.Refresh();
         }
 
-        private void FilterTopicsTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            /*
-            if (sender is TextBox textBox)
-            {
-                string filterText = textBox.Text;
-
-                TopicsCollectionView.Filter = item => string.IsNullOrEmpty(filterText) || ((string)item).Contains(filterText);
-                TopicsCollectionView.Refresh();
-            }
-            */
-        }
-
         private void TopicsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Messages = _selectedEnvironment.SelectedTopic?.Messages ?? new ObservableCollection<JsonMessage>();
@@ -228,7 +215,7 @@ namespace KafkaTools
             }
         }
 
-        private string _selectedMessageText = "Teste";
+        private string _selectedMessageText;
 
         public string SelectedMessageText
         {
@@ -345,16 +332,6 @@ namespace KafkaTools
                 });
             }
 
-        }
-
-        private async void EnvironmentsComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            // Method intentionally left empty.
-        }
-
-        private void DataGridMessages_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            // Method intentionally left empty.
         }
 
         private void SubscribeToTopic_Click(object sender, RoutedEventArgs e)

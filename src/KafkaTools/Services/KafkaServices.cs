@@ -214,6 +214,7 @@ namespace KafkaTools.Services
                     }
                     message.Key = consumeResult.Message.Key;
                     message.Value = valueString;
+                    message.Offset = consumeResult.Offset.Value;
                     message.Timestamp = consumeResult.Message.Timestamp;
 
                     MessagePublished?.Invoke(this, new MessageEventArgs(consumeResult.Topic,
@@ -372,7 +373,7 @@ namespace KafkaTools.Services
                     Client group id string. All clients sharing the same group.id belong to the same
                     group. default: '' importance: high                     
                     Notes:
-                    -  For COnfluent, the group.id may have some rules set up in the broker,
+                    -  For Confluent, the group.id may have some rules set up in the broker,
                        like starting with env name, like this example:
                        GroupId = $"ci-tooling-webhookeventadapter-worker-lairton-local",
                     - Not sure about if other brokers have similar rules.
