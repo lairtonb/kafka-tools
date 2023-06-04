@@ -208,8 +208,10 @@ namespace KafkaTools.Services
                     var streamReader = new StreamReader(stream);
                     var valueString = streamReader.ReadToEnd();
 
-                    var message = new JsonMessage();
-                    message.Headers = new Dictionary<string, byte[]>();
+                    var message = new JsonMessage
+                    {
+                        Headers = new Dictionary<string, byte[]>()
+                    };
                     foreach (var header in consumeResult.Message.Headers)
                     {
                         message.Headers.Add(header.Key, header.GetValueBytes());

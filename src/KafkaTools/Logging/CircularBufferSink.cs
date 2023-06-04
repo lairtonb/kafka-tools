@@ -34,35 +34,18 @@ namespace KafkaTools.Logging
             };
             buffer.Enqueue(logEntry);
 
-            /* foreach (var entry in buffer.GetItems())
-            {
-                _logEntries.Add(entry);
-            } */
-
-            OnPropertyChanged(nameof(LogEntries));
-            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, message));
+            RaisePropertyChanged(nameof(LogEntries));
+            RaiseCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, message));
         }
-
-        // readonly ObservableCollection<LogEntry> _logEntries = new ObservableCollection<LogEntry>();
 
         public IEnumerable<LogEntry> LogEntries => buffer.GetItems();
 
-        /*
-        public ObservableCollection<LogEntry> LogEntries
-        {
-            get
-            {
-                return _logEntries;
-            }
-        }
-        */
-
-        protected virtual void OnPropertyChanged(string propertyName)
+        protected virtual void RaisePropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected virtual void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
+        protected virtual void RaiseCollectionChanged(NotifyCollectionChangedEventArgs e)
         {
             CollectionChanged?.Invoke(this, e);
         }
