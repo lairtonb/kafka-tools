@@ -192,16 +192,18 @@ namespace KafkaTools.Services
                     using var stream = new MemoryStream(consumeResult.Message.Value);
                     using var reader = new BinaryReader(stream);
 
-                    /***
                     // Should just ignore first 5 bytes?                
                     var magicByte = reader.ReadByte();
                     if (magicByte != ConfluentConstants.MagicByte)
                     {
-                        throw new InvalidDataException($"Expecting data with Confluent Schema Registry framing. Magic byte was {consumeResult.Message.Value[0]}, expecting {ConfluentConstants.MagicByte}");
+                        // throw new InvalidDataException($"Expecting data with Confluent Schema Registry framing. Magic byte was {consumeResult.Message.Value[0]}, expecting {ConfluentConstants.MagicByte}");
+                        stream.Position = 0;
                     }
-
-                    var writerId = IPAddress.NetworkToHostOrder(reader.ReadInt32());
-                    */
+                    else
+                    {
+                        // Discard the id, since we are not considering it at this moment
+                        _ = IPAddress.NetworkToHostOrder(reader.ReadInt32());
+                    }
 
                     var streamReader = new StreamReader(stream);
                     var valueString = streamReader.ReadToEnd();
