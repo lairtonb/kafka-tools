@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using KafkaTools.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Notifications.Wpf.Core;
@@ -19,12 +20,16 @@ namespace KafkaTools.Models
 
         public EnvironmentInfo(string environmentName,
             INotificationManager notificationManager,
-            ILogger logger)
+            ILogger logger,
+            EnvironmentSettings environmentSettings)
         {
             EnvironmentName = environmentName;
             _notificationManager = notificationManager;
             _logger = logger;
+            EnvironmentSettings = environmentSettings;
         }
+
+        public EnvironmentSettings EnvironmentSettings { get; private set; }
 
         public string EnvironmentName { get; private set; }
 

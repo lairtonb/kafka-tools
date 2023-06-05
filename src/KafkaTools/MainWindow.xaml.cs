@@ -32,6 +32,9 @@ using KafkaTools.Logging;
 using Microsoft.Extensions.Logging;
 using KafkaTools.Data.DesignTime;
 using Microsoft.Extensions.Hosting;
+using KafkaTools.Configuration;
+using Microsoft.Extensions.Options;
+using Serilog.Core;
 
 namespace KafkaTools
 {
@@ -50,6 +53,7 @@ namespace KafkaTools
         private readonly ILogger<MainWindow> _logger;
         private readonly ILoggerFactory _loggerFactory;
         private readonly ObservableCollection<EnvironmentInfo> _environments;
+        private readonly AppSettings _appSettings;
 
         private static CircularBufferSink _logBufferSink;
 
@@ -64,8 +68,8 @@ namespace KafkaTools
             KafkaServices kafkaServices,
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
-            ILoggerFactory loggerFactory
-            )
+            ILoggerFactory loggerFactory,
+            IOptions<AppSettings> options)
         {
             _logBufferSink = logBufferSink;
             _logBufferSink.PropertyChanged += LogBufferSink_PropertyChanged; ;
@@ -79,6 +83,9 @@ namespace KafkaTools
             _loggerFactory = loggerFactory;
             _logger = _loggerFactory.CreateLogger<MainWindow>();
 
+            _appSettings = options.Value;
+
+            /*
             // TODO: Get this from the config file.
             _environments = new ObservableCollection<EnvironmentInfo>(new EnvironmentInfo[] {
                     new EnvironmentInfo("Development", notificationManager, loggerFactory.CreateLogger("Development")),
@@ -88,6 +95,33 @@ namespace KafkaTools
                     new EnvironmentInfo("Sandbox", notificationManager, loggerFactory.CreateLogger("Sandbox")),
                     new EnvironmentInfo("Production", notificationManager, loggerFactory.CreateLogger("Production"))
                 });
+            */
+
+            _environments = new ObservableCollection<EnvironmentInfo>();
+
+            foreach (var kvp in _appSettings.Environments)
+            {
+                string environmentName = kvp.Key;
+                EnvironmentSettings environmentSettings = kvp.Value;
+
+                EnvironmentInfo environmentInfo = environmentSettings switch
+                {
+                    UserSecretsEnvironmentSettings userSecretsSettings => new EnvironmentInfo(
+                        environmentName,
+                        notificationManager,
+                        loggerFactory.CreateLogger(environmentName),
+                        userSecretsSettings),
+                    KeyVaultEnvironmentSettings keyVaultSettings => new EnvironmentInfo(
+                        environmentName,
+                        notificationManager,
+                        loggerFactory.CreateLogger(environmentName),
+                        keyVaultSettings),
+                    _ => throw new NotSupportedException(
+                        $"Unsupported environment settings type: {environmentSettings.GetType().Name}")
+                };
+
+                _environments.Add(environmentInfo);
+            }
 
             // Need to think a little better how to handle this.
             _selectedEnvironment = _environments[0];

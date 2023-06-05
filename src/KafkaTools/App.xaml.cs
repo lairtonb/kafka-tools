@@ -16,6 +16,7 @@ using Serilog;
 using KafkaTools.Logging;
 using Serilog.Events;
 using Microsoft.Extensions.Logging;
+using KafkaTools.Configuration;
 
 namespace KafkaTools
 {
@@ -70,6 +71,12 @@ namespace KafkaTools
                     serviceCollection.AddSingleton<MainWindow>();
                     serviceCollection.AddSingleton<Window>(serviceProvider => serviceProvider.GetRequiredService<MainWindow>());
                     serviceCollection.AddSingleton<IHostLifetime, DesktopLifetime>();
+
+                    serviceCollection.AddOptions();
+                    serviceCollection.Configure<AppSettings>(configureOptions =>
+                    {
+                        configureOptions.Environments = context.Configuration.GetEnvironments("AppSettings:Environments");
+                    });
                 });
         }
 
