@@ -1,4 +1,11 @@
-## Confluent Schema Registry Framing
+## Apache Kafka Notes
+
+
+
+- We currently only support JSON messages. Support for Avro and Protobuf is planned.
+- We check the Kafka messages for the presence of the Confluent Schema Registry framing bytes and discard them.
+
+### Confluent Schema Registry Framing
 
 Confluent Schema Registry framing is a protocol used by the Confluent Schema Registry to encapsulate Avro-encoded messages for schema evolution and compatibility. It provides a way to serialize and deserialize Avro-encoded data with schema information, enabling consumers and producers to handle data in a consistent and compatible manner.
 
@@ -19,4 +26,3 @@ Notes:
 
 - The Confluent Schema Registry framing is not part of the Avro specification. It is a protocol used by the Confluent Schema Registry to encapsulate Avro-encoded messages for schema evolution and compatibility.
 - Some companies also use schema framing with JSON messages. 
-    
