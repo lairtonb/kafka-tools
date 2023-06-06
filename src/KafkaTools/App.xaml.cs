@@ -48,10 +48,6 @@ namespace KafkaTools
                 .CreateBootstrapLogger();
 
             return Host.CreateDefaultBuilder()
-                .ConfigureAppConfiguration((config) =>
-                {
-                    config.AddUserSecrets("301fdd9d-69f8-4441-90f8-7d83ddccf23d");
-                })
                 .UseSerilog((hostingContext, loggerConfiguration) =>
                 {
                     // Initialize Serilog with an in-memory sink, but load the

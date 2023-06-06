@@ -116,6 +116,11 @@ namespace KafkaTools
                         notificationManager,
                         loggerFactory.CreateLogger(environmentName),
                         keyVaultSettings),
+                    EnvironmentSettings noAuthSettings => new EnvironmentInfo(
+                        environmentName,
+                        notificationManager,
+                        loggerFactory.CreateLogger(environmentName),
+                        noAuthSettings),
                     _ => throw new NotSupportedException(
                         $"Unsupported environment settings type: {environmentSettings.GetType().Name}")
                 };
