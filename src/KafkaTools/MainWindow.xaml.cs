@@ -54,8 +54,8 @@ namespace KafkaTools
         private readonly ILoggerFactory _loggerFactory;
         private readonly ObservableCollection<EnvironmentInfo> _environments;
         private readonly AppSettings _appSettings;
-
-        private static CircularBufferSink _logBufferSink;
+        private readonly KafkaViewModel _environmentsManager;
+        private readonly CircularBufferSink _logBufferSink;
 
         /// <summary>
         /// Used by XAML to bind to the view model.
@@ -69,93 +69,34 @@ namespace KafkaTools
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
             ILoggerFactory loggerFactory,
-            IOptions<AppSettings> options)
+            IOptions<AppSettings> options,
+            KafkaViewModel kafkaViewModel)
         {
-            _logBufferSink = logBufferSink;
-            _logBufferSink.PropertyChanged += LogBufferSink_PropertyChanged; ;
-
             InitializeComponent();
+
+            _logBufferSink = logBufferSink;
+            _logBufferSink.PropertyChanged += LogBufferSink_PropertyChanged;
 
             _config = config;
             _kafkaServices = kafkaServices;
             _notificationManager = notificationManager;
-
             _loggerFactory = loggerFactory;
-            _logger = _loggerFactory.CreateLogger<MainWindow>();
-
             _appSettings = options.Value;
+            _environmentsManager = kafkaViewModel;
 
-            /*
-            // TODO: Get this from the config file.
-            _environments = new ObservableCollection<EnvironmentInfo>(new EnvironmentInfo[] {
-                    new EnvironmentInfo("Development", notificationManager, loggerFactory.CreateLogger("Development")),
-                    new EnvironmentInfo("CI", notificationManager, loggerFactory.CreateLogger("CI")),
-                    new EnvironmentInfo("Test", notificationManager, loggerFactory.CreateLogger("Test")),
-                    new EnvironmentInfo("Prep", notificationManager, loggerFactory.CreateLogger("Prep")),
-                    new EnvironmentInfo("Sandbox", notificationManager, loggerFactory.CreateLogger("Sandbox")),
-                    new EnvironmentInfo("Production", notificationManager, loggerFactory.CreateLogger("Production"))
-                });
-            */
+            _logger = _loggerFactory.CreateLogger<MainWindow>();
 
             _environments = new ObservableCollection<EnvironmentInfo>();
 
-            foreach (var kvp in _appSettings.Environments)
-            {
-                string environmentName = kvp.Key;
-                EnvironmentSettings environmentSettings = kvp.Value;
+            /// InitializeEnvironments(notificationManager, loggerFactory);
 
-                EnvironmentInfo environmentInfo = environmentSettings switch
-                {
-                    UserSecretsEnvironmentSettings userSecretsSettings => new EnvironmentInfo(
-                        environmentName,
-                        notificationManager,
-                        loggerFactory.CreateLogger(environmentName),
-                        userSecretsSettings),
-                    KeyVaultEnvironmentSettings keyVaultSettings => new EnvironmentInfo(
-                        environmentName,
-                        notificationManager,
-                        loggerFactory.CreateLogger(environmentName),
-                        keyVaultSettings),
-                    EnvironmentSettings noAuthSettings => new EnvironmentInfo(
-                        environmentName,
-                        notificationManager,
-                        loggerFactory.CreateLogger(environmentName),
-                        noAuthSettings),
-                    _ => throw new NotSupportedException(
-                        $"Unsupported environment settings type: {environmentSettings.GetType().Name}")
-                };
-
-                _environments.Add(environmentInfo);
-            }
+            /// kafkaViewModel.LoadEnvironments();
 
             // Need to think a little better how to handle this.
-            _selectedEnvironment = _environments[0];
+            _environments = kafkaViewModel.Environments;
+            _selectedEnvironment = kafkaViewModel.Environments[0];
 
             DataContext = this;
-        }
-
-        public virtual ObservableCollection<EnvironmentInfo> Environments
-        {
-            get
-            {
-                return _environments;
-            }
-        }
-
-        private EnvironmentInfo _selectedEnvironment;
-
-        public EnvironmentInfo SelectedEnvironment
-        {
-            get { return _selectedEnvironment; }
-            set
-            {
-                if (value == _selectedEnvironment)
-                    return;
-
-                _selectedEnvironment = value;
-
-                RaisePropertyChanged(nameof(SelectedEnvironment));
-            }
         }
 
         private ObservableCollection<TopicInfo> _topics = new();
@@ -277,14 +218,6 @@ namespace KafkaTools
         {
             public const byte MagicByte = 0;
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        private void RaisePropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
         private void ButtonConnect_Click(object sender, RoutedEventArgs e)
         {
             // TODO Show some progress indicator
@@ -429,13 +362,90 @@ namespace KafkaTools
             }
         }
 
+        //  TODO Hmmm, this needs improvements. A better IoC will help.
+
+        private Lazy<ObservableCollection<LogEntry>> _lazyLogEntries =
+            new Lazy<ObservableCollection<LogEntry>>(() => new ObservableCollection<LogEntry>());
+
         public IEnumerable<LogEntry> LogEntries
         {
             get
             {
-                return _logBufferSink.LogEntries;
+                return _logBufferSink?.LogEntries ?? _lazyLogEntries.Value;
             }
         }
+
+        #region Copied
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void RaisePropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        /****
+        private void InitializeEnvironments(INotificationManager notificationManager, ILoggerFactory loggerFactory)
+        {
+            foreach (var kvp in _appSettings.Environments)
+            {
+                string environmentName = kvp.Key;
+                EnvironmentSettings environmentSettings = kvp.Value;
+
+                EnvironmentInfo environmentInfo = environmentSettings switch
+                {
+                    UserSecretsEnvironmentSettings userSecretsSettings => new EnvironmentInfo(
+                        environmentName,
+                        notificationManager,
+                        loggerFactory.CreateLogger(environmentName),
+                        userSecretsSettings),
+                    KeyVaultEnvironmentSettings keyVaultSettings => new EnvironmentInfo(
+                        environmentName,
+                        notificationManager,
+                        loggerFactory.CreateLogger(environmentName),
+                        keyVaultSettings),
+                    EnvironmentSettings noAuthSettings => new EnvironmentInfo(
+                        environmentName,
+                        notificationManager,
+                        loggerFactory.CreateLogger(environmentName),
+                        noAuthSettings),
+                    _ => throw new NotSupportedException(
+                        $"Unsupported environment settings type: {environmentSettings.GetType().Name}")
+                };
+
+                _environments.Add(environmentInfo);
+            }
+
+            // Need to think a little better how to handle this.
+            _selectedEnvironment = _environments[0];
+        }
+        */
+
+        public virtual ObservableCollection<EnvironmentInfo> Environments
+        {
+            get
+            {
+                return _environments;
+            }
+        }
+
+        private EnvironmentInfo _selectedEnvironment;
+
+        public EnvironmentInfo SelectedEnvironment
+        {
+            get { return _selectedEnvironment; }
+            set
+            {
+                if (value == _selectedEnvironment)
+                    return;
+
+                _selectedEnvironment = value;
+
+                RaisePropertyChanged(nameof(SelectedEnvironment));
+            }
+        }
+
+        #endregion
     }
 
 

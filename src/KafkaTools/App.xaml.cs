@@ -62,7 +62,8 @@ namespace KafkaTools
 
                     serviceCollection.AddSingleton<INotificationManager, NotificationManager>();
                     serviceCollection.AddMemoryCache();
-                    serviceCollection.AddSingleton<KafkaServices>();
+                    serviceCollection.AddTransient<KafkaServices>();
+                    serviceCollection.AddSingleton<KafkaViewModel>();
 
                     serviceCollection.AddSingleton<MainWindow>();
                     serviceCollection.AddSingleton<Window>(serviceProvider => serviceProvider.GetRequiredService<MainWindow>());
