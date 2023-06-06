@@ -47,14 +47,12 @@ namespace KafkaTools
 
         public string? Password { get; private set; } = "Yx1DXhdNOZIx/nNTJZ5aF9wQTb/cbcYW43FaVixr/gGd0Ci+AN/y/DYoOecFBlCS";
 
-        private readonly IConfiguration _config;
         private readonly KafkaServices _kafkaServices;
         private readonly INotificationManager _notificationManager;
         private readonly ILogger<MainWindow> _logger;
         private readonly ILoggerFactory _loggerFactory;
         private readonly ObservableCollection<EnvironmentInfo> _environments;
-        private readonly AppSettings _appSettings;
-        private readonly KafkaViewModel _environmentsManager;
+        private readonly KafkaViewModel _kafkaViewModel;
         private readonly CircularBufferSink _logBufferSink;
 
         /// <summary>
@@ -64,12 +62,10 @@ namespace KafkaTools
         {
         }
 
-        public MainWindow(IConfiguration config,
-            KafkaServices kafkaServices,
+        public MainWindow(KafkaServices kafkaServices,
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
             ILoggerFactory loggerFactory,
-            IOptions<AppSettings> options,
             KafkaViewModel kafkaViewModel)
         {
             InitializeComponent();
@@ -77,12 +73,10 @@ namespace KafkaTools
             _logBufferSink = logBufferSink;
             _logBufferSink.PropertyChanged += LogBufferSink_PropertyChanged;
 
-            _config = config;
             _kafkaServices = kafkaServices;
             _notificationManager = notificationManager;
             _loggerFactory = loggerFactory;
-            _appSettings = options.Value;
-            _environmentsManager = kafkaViewModel;
+            _kafkaViewModel = kafkaViewModel;
 
             _logger = _loggerFactory.CreateLogger<MainWindow>();
 
@@ -99,152 +93,9 @@ namespace KafkaTools
             DataContext = this;
         }
 
-        private ObservableCollection<TopicInfo> _topics = new();
-
-        public ObservableCollection<TopicInfo> Topics
-        {
-            get { return _topics; }
-            set
-            {
-                if (_topics != value)
-                {
-                    _topics = value;
-                    RaisePropertyChanged(nameof(Topics));
-                }
-            }
-        }
-
-        private ICollectionView topicsCollectionView;
-
-        public ICollectionView TopicsCollectionView
-        {
-            get { return topicsCollectionView; }
-            set
-            {
-                if (topicsCollectionView != value)
-                {
-                    topicsCollectionView = value;
-                    RaisePropertyChanged(nameof(TopicsCollectionView));
-                }
-            }
-        }
-
-        private string topicNameFilter;
-        public string TopicNameFilter
-        {
-            get { return topicNameFilter; }
-            set
-            {
-                if (topicNameFilter != value)
-                {
-                    topicNameFilter = value;
-                    RaisePropertyChanged(nameof(TopicNameFilter));
-                    ApplyFilter();
-                }
-            }
-        }
-
-        private void ApplyFilter()
-        {
-            TopicsCollectionView.Filter = item => string.IsNullOrEmpty(TopicNameFilter) || ((TopicInfo)item).TopicName.Contains(TopicNameFilter);
-            TopicsCollectionView.Refresh();
-        }
-
         private void TopicsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Messages = _selectedEnvironment.SelectedTopic?.Messages ?? new ObservableCollection<JsonMessage>();
-        }
-
-        private ObservableCollection<JsonMessage> _selectedMessages = new();
-
-        public ObservableCollection<JsonMessage> Messages
-        {
-            get => _selectedMessages;
-            set
-            {
-                _selectedMessages = value;
-                RaisePropertyChanged(nameof(Messages));
-            }
-        }
-
-        private JsonMessage _selectedMessage;
-
-        readonly Regex messageMatcherRegex = new("^[^{]*?(?={)", RegexOptions.Compiled
-            | RegexOptions.Singleline);
-
-        public JsonMessage SelectedMessage
-        {
-            get { return _selectedMessage; }
-            set
-            {
-                if (_selectedMessage == value)
-                {
-                    return;
-                }
-
-                _selectedMessage = value;
-
-                if (messageMatcherRegex.IsMatch(_selectedMessage?.Value ?? string.Empty))
-                {
-                    var message = messageMatcherRegex.Replace(_selectedMessage?.Value ?? string.Empty, string.Empty);
-                    using var temp = JsonDocument.Parse(message);
-                    SelectedMessageText = JsonSerializer.Serialize(temp, new JsonSerializerOptions { WriteIndented = true });
-                }
-
-                RaisePropertyChanged(nameof(SelectedMessage));
-            }
-        }
-
-        private string _selectedMessageText;
-
-        public string SelectedMessageText
-        {
-            get { return _selectedMessageText; }
-            set
-            {
-                if (_selectedMessageText == value)
-                {
-                    return;
-                }
-                _selectedMessageText = value;
-
-                _selectedMessage.Value = _selectedMessageText;
-
-                RaisePropertyChanged(nameof(SelectedMessageText));
-            }
-        }
-
-        internal static class ConfluentConstants
-        {
-            public const byte MagicByte = 0;
-        }
-        private void ButtonConnect_Click(object sender, RoutedEventArgs e)
-        {
-            // TODO Show some progress indicator
-            // TODO Unsubscribe from all messagens from previous environment
-            // TODO Maybe use another visual representation in the future,
-            //      like Guilherme did in Aptakube
-
-            if (_selectedEnvironment == null)
-            {
-                e.Handled = true;
-                return;
-            }
-
-            if (this.SelectedEnvironment.Status != ConnectionStatus.Connected)
-            {
-                _ = Connect();
-            }
-            else
-            {
-                _ = Disconnect();
-            }
-        }
-
-        private async Task Disconnect()
-        {
-
-            await Task.CompletedTask;
         }
 
         private async Task Connect()
@@ -306,30 +157,6 @@ namespace KafkaTools
 
         }
 
-        private void SubscribeToTopic_Click(object sender, RoutedEventArgs e)
-        {
-            Task.Run(async () =>
-            {
-                if (!_selectedEnvironment.SelectedTopic.Subscribed)
-                {
-                    _kafkaServices.Subscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
-                    _selectedEnvironment.SelectedTopic.Subscribed = true;
-                    await _kafkaServices.StartConsumingAsync(SelectedEnvironment, _selectedEnvironment.SelectedTopic.TopicName);
-                }
-                else
-                {
-                    _kafkaServices.Unsubscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
-                    _selectedEnvironment.SelectedTopic.Subscribed = false;
-                    // TODO implement stop consumign if it is last topic?
-                }
-            });
-        }
-
-        private void PublishTo_Click(object sender, RoutedEventArgs e)
-        {
-            // Method intentionally left empty.
-        }
-
         private void Window_Closed(object sender, EventArgs e)
         {
             Application.Current.Shutdown(0);
@@ -364,8 +191,8 @@ namespace KafkaTools
 
         //  TODO Hmmm, this needs improvements. A better IoC will help.
 
-        private Lazy<ObservableCollection<LogEntry>> _lazyLogEntries =
-            new Lazy<ObservableCollection<LogEntry>>(() => new ObservableCollection<LogEntry>());
+        private readonly Lazy<ObservableCollection<LogEntry>> _lazyLogEntries =
+            new(() => new ObservableCollection<LogEntry>());
 
         public IEnumerable<LogEntry> LogEntries
         {
@@ -376,6 +203,21 @@ namespace KafkaTools
         }
 
         #region Copied
+
+        private ObservableCollection<TopicInfo> _topics = new();
+
+        public ObservableCollection<TopicInfo> Topics
+        {
+            get { return _topics; }
+            set
+            {
+                if (_topics != value)
+                {
+                    _topics = value;
+                    RaisePropertyChanged(nameof(Topics));
+                }
+            }
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -443,6 +285,144 @@ namespace KafkaTools
 
                 RaisePropertyChanged(nameof(SelectedEnvironment));
             }
+        }
+
+        private ICollectionView topicsCollectionView;
+
+        public ICollectionView TopicsCollectionView
+        {
+            get { return topicsCollectionView; }
+            set
+            {
+                if (topicsCollectionView != value)
+                {
+                    topicsCollectionView = value;
+                    RaisePropertyChanged(nameof(TopicsCollectionView));
+                }
+            }
+        }
+
+        private string topicNameFilter;
+        public string TopicNameFilter
+        {
+            get { return topicNameFilter; }
+            set
+            {
+                if (topicNameFilter != value)
+                {
+                    topicNameFilter = value;
+                    RaisePropertyChanged(nameof(TopicNameFilter));
+                    ApplyFilter();
+                }
+            }
+        }
+
+        private void ApplyFilter()
+        {
+            TopicsCollectionView.Filter = item => string.IsNullOrEmpty(TopicNameFilter) || ((TopicInfo)item).TopicName.Contains(TopicNameFilter);
+            TopicsCollectionView.Refresh();
+        }
+
+        private ObservableCollection<JsonMessage> _selectedMessages = new();
+
+        public ObservableCollection<JsonMessage> Messages
+        {
+            get => _selectedMessages;
+            set
+            {
+                _selectedMessages = value;
+                RaisePropertyChanged(nameof(Messages));
+            }
+        }
+
+        private JsonMessage _selectedMessage;
+
+        readonly Regex messageMatcherRegex = new("^[^{]*?(?={)", RegexOptions.Compiled
+            | RegexOptions.Singleline);
+
+        public JsonMessage SelectedMessage
+        {
+            get { return _selectedMessage; }
+            set
+            {
+                if (_selectedMessage == value)
+                {
+                    return;
+                }
+
+                _selectedMessage = value;
+
+                if (messageMatcherRegex.IsMatch(_selectedMessage?.Value ?? string.Empty))
+                {
+                    var message = messageMatcherRegex.Replace(_selectedMessage?.Value ?? string.Empty, string.Empty);
+                    using var temp = JsonDocument.Parse(message);
+                    SelectedMessageText = JsonSerializer.Serialize(temp, new JsonSerializerOptions { WriteIndented = true });
+                }
+
+                RaisePropertyChanged(nameof(SelectedMessage));
+            }
+        }
+
+        private string _selectedMessageText;
+
+        public string SelectedMessageText
+        {
+            get { return _selectedMessageText; }
+            set
+            {
+                if (_selectedMessageText == value)
+                {
+                    return;
+                }
+                _selectedMessageText = value;
+
+                _selectedMessage.Value = _selectedMessageText;
+
+                RaisePropertyChanged(nameof(SelectedMessageText));
+            }
+        }
+
+        private void ButtonConnect_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedEnvironment == null)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (this.SelectedEnvironment.Status != ConnectionStatus.Connected)
+            {
+                _ = Connect();
+            }
+            else
+            {
+                _ = Disconnect();
+            }
+        }
+
+        private async Task Disconnect()
+        {
+
+            await Task.CompletedTask;
+        }
+
+        private void SubscribeToTopic_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Run(async () =>
+            {
+                if (!_selectedEnvironment.SelectedTopic.Subscribed)
+                {
+                    _kafkaServices.Subscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
+                    _selectedEnvironment.SelectedTopic.Subscribed = true;
+                    await _kafkaServices.StartConsumingAsync(SelectedEnvironment, _selectedEnvironment.SelectedTopic.TopicName);
+                }
+                else
+                {
+                    _kafkaServices.Unsubscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
+                    _selectedEnvironment.SelectedTopic.Subscribed = false;
+                    // TODO implement stop consumign if it is last topic?
+                }
+            });
         }
 
         #endregion
