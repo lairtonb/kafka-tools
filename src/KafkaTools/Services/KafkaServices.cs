@@ -157,9 +157,6 @@ namespace KafkaTools.Services
                     consumer.Subscribe(currentTopics.Select(t => t.Value));
                 }
 
-                // Why should we want this?
-                // cts.CancelAfter(TimeSpan.FromSeconds(60));
-
                 while (true)
                 {
                     var consumeResult = consumer.Consume(_cancellationTokenSource.Token);
@@ -350,14 +347,13 @@ namespace KafkaTools.Services
             return (key, secret);
         }
 
-
-        public Dictionary<string, IConsumer<string, byte[]>> consumers = new();
+        private readonly Dictionary<string, IConsumer<string, byte[]>> _consumers = new();
 
         private async Task<IConsumer<string, byte[]>> GetConsumerAsync(string selectedSourceEnvironment)
         {
-            if (consumers.ContainsKey(selectedSourceEnvironment))
+            if (_consumers.ContainsKey(selectedSourceEnvironment))
             {
-                return consumers[selectedSourceEnvironment];
+                return _consumers[selectedSourceEnvironment];
             }
 
             try
@@ -480,7 +476,7 @@ namespace KafkaTools.Services
                     */
                     .Build();
 
-                consumers.Add(selectedSourceEnvironment, consumer);
+                _consumers.Add(selectedSourceEnvironment, consumer);
 
                 return consumer;
             }
