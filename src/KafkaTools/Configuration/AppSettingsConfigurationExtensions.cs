@@ -4,7 +4,9 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Confluent.Kafka;
 using KafkaTools.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace Microsoft.Extensions.Configuration
 {
@@ -31,14 +33,23 @@ namespace Microsoft.Extensions.Configuration
                         ?? throw new AppSettingsException($"An environment setting session must have values: {itemKey}");
                     switch (environmentSettings.AuthenticationType)
                     {
+                        case "None":
+                            environmentSettings.EnvironmentName = itemKey;
+                            dictionary.Add(itemKey, environmentSettings);
+                            break;
+
                         case "KeyVault":
-                            var keyVaultEnvironmentSettings = childSection.Get<KeyVaultEnvironmentSettings>();
-                            dictionary.Add(itemKey, keyVaultEnvironmentSettings ?? new KeyVaultEnvironmentSettings { AuthenticationType = "KeyVault" });
+                            var keyVaultEnvironmentSettings = childSection.Get<KeyVaultEnvironmentSettings>()!;
+                            keyVaultEnvironmentSettings.EnvironmentName = itemKey;
+                            dictionary.Add(itemKey, keyVaultEnvironmentSettings);
                             break;
+
                         case "UserSecrets":
-                            var userSecretsEnvironmentSettings = childSection.Get<UserSecretsEnvironmentSettings>();
-                            dictionary.Add(itemKey, userSecretsEnvironmentSettings ?? new UserSecretsEnvironmentSettings { AuthenticationType = "UserSecrets" });
+                            var userSecretsEnvironmentSettings = childSection.Get<UserSecretsEnvironmentSettings>()!;
+                            userSecretsEnvironmentSettings.EnvironmentName = itemKey;
+                            dictionary.Add(itemKey, userSecretsEnvironmentSettings);
                             break;
+
                         default:
                             throw new AppSettingsException(
                                     $"Unsupported AuthenticationType for environment ({itemKey}): {environmentSettings.AuthenticationType ?? "<null>"}",

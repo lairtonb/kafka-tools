@@ -15,9 +15,12 @@ using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Confluent.Kafka;
+using KafkaTools.Configuration;
 using KafkaTools.Models;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Notifications.Wpf.Core;
 using static System.Net.WebRequestMethods;
@@ -36,18 +39,21 @@ namespace KafkaTools.Services
         private readonly INotificationManager _notificationManager;
 
         private readonly Dispatcher _dispatcher;
+        private readonly AppSettings _appSettings;
+        private readonly ILogger<KafkaServices> _logger;
         private CancellationTokenSource _cancellationTokenSource;
 
         public object JsonConvert { get; private set; }
 
-        public KafkaServices(IMemoryCache envCache, INotificationManager notificationManager, System.Windows.Threading.Dispatcher? dispatcher = default)
+        public KafkaServices(IMemoryCache envCache, INotificationManager notificationManager,
+            IOptions<AppSettings> options, ILogger<KafkaServices> logger)
         {
             _envCache = envCache;
             _notificationManager = notificationManager;
+            _appSettings = options.Value;
+            _logger = logger;
 
-            dispatcher ??= Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
-
-            _dispatcher = dispatcher;
+            _dispatcher ??= Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
 
             _cancellationTokenSource = new CancellationTokenSource();
         }
@@ -90,11 +96,11 @@ namespace KafkaTools.Services
 
             if (!string.IsNullOrEmpty(envSettings.Key) && !string.IsNullOrEmpty(envSettings.Secret))
             {
-                adminConfig.SaslMechanism = SaslMechanism.Plain;
-                adminConfig.SecurityProtocol = SecurityProtocol.SaslSsl;
+                adminConfig.SaslMechanism = envSettings.SaslMechanism;
+                adminConfig.SecurityProtocol = envSettings.SecurityProtocol;
                 adminConfig.SaslUsername = envSettings.Key;
                 adminConfig.SaslPassword = envSettings.Secret;
-            };
+            }
 
             var topics = new List<string>();
 
@@ -227,6 +233,7 @@ namespace KafkaTools.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, ex.Message);
                 await _dispatcher.Invoke(() => _notificationManager.CloseAllAsync());
                 await _notificationManager.ShowAsync(new NotificationContent
                 {
@@ -247,23 +254,25 @@ namespace KafkaTools.Services
                 return (EnvSettings)cachedEnvSettings;
             }
 
-            var brokerUrl = environment switch
+            var brokerUrl = _appSettings.Environments[environment].BrokerUrl;
+            var saslMechanism = _appSettings.Environments[environment].SaslMechanism;
+            var securityProtocol = _appSettings.Environments[environment].SecurityProtocol;
+
+            var (key, secret) = _appSettings.Environments[environment] switch
             {
-                "Development" => "localhost:9092",
-                "CI" => "pkc-57q5g.westeurope.azure.confluent.cloud:9092",
-                "Test" => "pkc-57q5g.westeurope.azure.confluent.cloud:9092",
-                "Staging" => "pkc-57q5g.westeurope.azure.confluent.cloud:9092",
-                "Production" => "pkc-57q5g.westeurope.azure.confluent.cloud:9092",
+                KeyVaultEnvironmentSettings environmentSettings => await GetKeyVaultEnvSettingsAsync(environmentSettings),
+                UserSecretsEnvironmentSettings userSecretsEnvironmentSettings => await GetUserSecretsEnvironmentSettings(userSecretsEnvironmentSettings),
+                EnvironmentSettings => (string.Empty, string.Empty),
                 _ => throw new ArgumentException("Invalid environment", nameof(environment))
             };
 
-            var (key, secret) = await GetKeyAndSecretAsync(environment);
-
             var envSettings = new EnvSettings()
             {
+                BrokerUrl = brokerUrl,
+                SaslMechanism = saslMechanism,
+                SecurityProtocol = securityProtocol,
                 Key = key,
-                Secret = secret,
-                BrokerUrl = brokerUrl
+                Secret = secret
             };
 
             _envCache.Set(environment, envSettings,
@@ -273,7 +282,20 @@ namespace KafkaTools.Services
             return envSettings;
         }
 
-        private async Task<(string key, string secret)> GetKeyAndSecretAsync(string environment)
+        /// <summary>
+        /// Get settings from user secrets
+        /// </summary>
+        private Task<(string key, string secret)> GetUserSecretsEnvironmentSettings(UserSecretsEnvironmentSettings userSecretsEnvironmentSettings)
+        {
+            var configurationBuilder = new ConfigurationBuilder();
+            configurationBuilder.AddUserSecrets(userSecretsEnvironmentSettings.UserSecretsId);
+            var config = configurationBuilder.Build();
+            var key = config.GetSection($"AppSettings:Environments:{userSecretsEnvironmentSettings.EnvironmentName}:ClientId").Value;
+            var secret = config.GetSection($"AppSettings:Environments:{userSecretsEnvironmentSettings.EnvironmentName}:ClientSecret").Value;
+            return Task.FromResult((key!, secret!));
+        }
+
+        private async Task<(string key, string secret)> GetKeyVaultEnvSettingsAsync(KeyVaultEnvironmentSettings environment)
         {
             SecretClientOptions options = new()
             {
@@ -286,59 +308,48 @@ namespace KafkaTools.Services
                  }
             };
 
-            var kvUri = environment switch
-            {
-                "Development" => null,
-                "CI" => new Uri($"https://esw-tooling-ci-we.vault.azure.net"),
-                "Test" => new Uri($"https://esw-tooling-test.vault.azure.net"),
-                "Prep" => new Uri($"https://esw-tooling-sand.vault.azure.net"),
-                "Sand" => new Uri($"https://esw-tooling-sand.vault.azure.net"),
-                _ => throw new ArgumentException("Invalid environment", nameof(environment))
-            };
-
             var key = string.Empty;
             var secret = string.Empty;
 
-            if (environment != "Development")
+            var identifier = Guid.NewGuid();
+
+            await _notificationManager.ShowAsync(identifier, new NotificationContent
             {
-                var identifier = Guid.NewGuid();
+                Title = "Information",
+                Message = "Getting credentials from KeyVault...",
+                Type = NotificationType.Information
+            }, "WindowArea", expirationTime: TimeSpan.MaxValue);
 
-                await _notificationManager.ShowAsync(identifier, new NotificationContent
-                {
-                    Title = "Information",
-                    Message = "Getting credentials from KeyVault...",
-                    Type = NotificationType.Information
-                }, "WindowArea", expirationTime: TimeSpan.MaxValue);
+            try
+            {
+                var kvClient = new SecretClient(new Uri(environment.KeyVaultUrl), new DefaultAzureCredential(), options);
+                var kvSecret = (await kvClient.GetSecretAsync("cm--kafka-key--tooling")).Value;
+                key = kvSecret.Value;
 
-                try
-                {
-                    var kvClient = new SecretClient(kvUri, new DefaultAzureCredential(), options);
-                    var kvSecret = (await kvClient.GetSecretAsync("cm--kafka-key--tooling")).Value;
-                    key = kvSecret.Value;
-
-                    kvSecret = (await kvClient.GetSecretAsync("cm--kafka-secret--tooling")).Value;
-                    secret = kvSecret.Value;
-                }
-                finally
-                {
-                    if (!_dispatcher.CheckAccess())
-                    {
-                        await _dispatcher.BeginInvoke((Action)async delegate
-                        {
-                            await _notificationManager.CloseAsync(identifier);
-                        });
-                    }
-                }
-
-                await _notificationManager.ShowAsync(new NotificationContent
-                {
-                    Title = "Success",
-                    Message = "Done getting credentials from KeyVault.",
-                    Type = NotificationType.Success
-                }, "WindowArea");
+                kvSecret = (await kvClient.GetSecretAsync("cm--kafka-secret--tooling")).Value;
+                secret = kvSecret.Value;
             }
+            finally
+            {
+                if (!_dispatcher.CheckAccess())
+                {
+                    await _dispatcher.BeginInvoke((Action)async delegate
+                    {
+                        await _notificationManager.CloseAsync(identifier);
+                    });
+                }
+            }
+
+            await _notificationManager.ShowAsync(new NotificationContent
+            {
+                Title = "Success",
+                Message = "Done getting credentials from KeyVault.",
+                Type = NotificationType.Success
+            }, "WindowArea");
+
             return (key, secret);
         }
+
 
         public Dictionary<string, IConsumer<string, byte[]>> consumers = new();
 

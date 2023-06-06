@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Confluent.Kafka;
 
 namespace KafkaTools.Configuration
 {
@@ -13,7 +14,11 @@ namespace KafkaTools.Configuration
 
     public class EnvironmentSettings
     {
+        public string EnvironmentName { get; set; }
+        public string BrokerUrl { get; set; }
         public string AuthenticationType { get; set; }
+        public SaslMechanism? SaslMechanism { get; set; }
+        public SecurityProtocol? SecurityProtocol { get; internal set; }
     }
 
     public class UserSecretsEnvironmentSettings : EnvironmentSettings
