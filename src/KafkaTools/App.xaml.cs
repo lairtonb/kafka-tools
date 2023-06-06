@@ -37,7 +37,7 @@ namespace KafkaTools
 
         public IHostBuilder CreateHostBuilder()
         {
-            var logBufferSink = new CircularBufferSink(10);
+            var logBufferSink = new CircularBufferSink(capacity: 1500);
 
             Serilog.Debugging.SelfLog.Enable(msg => System.IO.File.AppendAllText("logs\\serilog-debug.log", msg));
 
