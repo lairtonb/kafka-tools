@@ -6,18 +6,18 @@ using System.Threading.Tasks;
 
 namespace KafkaTools.Services
 {
-    public class KafkaServicesException : Exception
+    public class KafkaServiceException : Exception
     {
-        public KafkaServicesException()
+        public KafkaServiceException()
         {
         }
 
-        public KafkaServicesException(string message)
+        public KafkaServiceException(string message)
             : base(message)
         {
         }
 
-        public KafkaServicesException(string message, Exception innerException)
+        public KafkaServiceException(string message, Exception innerException)
             : base(message, innerException)
         {
         }

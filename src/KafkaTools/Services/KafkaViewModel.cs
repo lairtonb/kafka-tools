@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Confluent.Kafka;
-using KafkaTools.Abstractions;
 using System.Windows.Threading;
 using KafkaTools.Common;
 using KafkaTools.Configuration;
@@ -29,13 +28,13 @@ namespace KafkaTools.Services
         private readonly AppSettings _appSettings;
         private readonly INotificationManager _notificationManager;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly KafkaServices _kafkaServices;
+        private readonly KafkaService _kafkaServices;
 
         public KafkaViewModel(ILogger<KafkaViewModel> logger,
             IOptions<AppSettings> options,
             INotificationManager notificationManager,
             ILoggerFactory loggerFactory,
-            KafkaServices kafkaServices)
+            KafkaService kafkaServices)
         {
             _logger = logger;
             _appSettings = options.Value;

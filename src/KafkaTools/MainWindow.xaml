@@ -18,8 +18,7 @@
         Title="Kafka Tools" 
         Height="600" 
         Width="1100" 
-        Closed="Window_Closed"
->  
+        Closed="Window_Closed">
     <Window.DataContext>
         <local:MainWindow />
     </Window.DataContext>
@@ -175,11 +174,10 @@
                                          VerticalAlignment="Top"
                                          Text="{Binding TopicNameFilter, UpdateSourceTrigger=PropertyChanged}"
                                          />
-                                <ListBox x:Name="TopicsListBox"
-                                        ItemsSource="{Binding TopicsCollectionView}"
-                                        SelectedItem="{Binding SelectedEnvironment.SelectedTopic}"
-                                        d:ItemsSource="{d:SampleData ItemCount=5}" 
-                                        Margin="10,112,10,10" SelectionChanged="TopicsListBox_SelectionChanged">
+                                <ListBox ItemsSource="{Binding TopicsCollectionView}"
+                                         SelectedItem="{Binding SelectedEnvironment.SelectedTopic}"
+                                         d:ItemsSource="{d:SampleData ItemCount=5}" 
+                                         Margin="10,112,10,10">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding TopicName}">
@@ -324,10 +322,9 @@
                                 </Label>
                             </DockPanel>
                             <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FFF9F9F9">
-                                <Button Name="CopyMessage" 
-                                        Width="21" Height="21"                                         
+                                <Button Width="21" Height="21"                                         
                                         Margin="10 0 0 0" 
-                                        Click="CopyMessage_Click">
+                                        Command="{Binding CopyMessageCommand}">
                                     <Image Width="16" Height="16" 
                                            VerticalAlignment="Center" 
                                            HorizontalAlignment="Center"

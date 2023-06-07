@@ -24,7 +24,6 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Confluent.Kafka.Admin;
 using KafkaTools.Services;
-using KafkaTools.Abstractions;
 using System.Windows.Threading;
 using Notifications.Wpf.Core;
 using KafkaTools.Models;
@@ -35,6 +34,7 @@ using Microsoft.Extensions.Hosting;
 using KafkaTools.Configuration;
 using Microsoft.Extensions.Options;
 using Serilog.Core;
+using KafkaTools.Common;
 
 namespace KafkaTools
 {
@@ -47,7 +47,7 @@ namespace KafkaTools
 
         public string? Password { get; private set; } = "Yx1DXhdNOZIx/nNTJZ5aF9wQTb/cbcYW43FaVixr/gGd0Ci+AN/y/DYoOecFBlCS";
 
-        private readonly KafkaServices _kafkaServices;
+        private readonly KafkaService _kafkaServices;
         private readonly INotificationManager _notificationManager;
         private readonly ILogger<MainWindow> _logger;
         private readonly ILoggerFactory _loggerFactory;
@@ -62,7 +62,7 @@ namespace KafkaTools
         {
         }
 
-        public MainWindow(KafkaServices kafkaServices,
+        public MainWindow(KafkaService kafkaServices,
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
             ILoggerFactory loggerFactory,
@@ -80,22 +80,11 @@ namespace KafkaTools
 
             _logger = _loggerFactory.CreateLogger<MainWindow>();
 
-            _environments = new ObservableCollection<EnvironmentInfo>();
-
-            /// InitializeEnvironments(notificationManager, loggerFactory);
-
-            /// kafkaViewModel.LoadEnvironments();
-
             // Need to think a little better how to handle this.
             _environments = kafkaViewModel.Environments;
             _selectedEnvironment = kafkaViewModel.Environments[0];
 
             DataContext = this;
-        }
-
-        private void TopicsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            Messages = _selectedEnvironment.SelectedTopic?.Messages ?? new ObservableCollection<JsonMessage>();
         }
 
         private async Task Connect()
@@ -162,7 +151,18 @@ namespace KafkaTools
             Application.Current.Shutdown(0);
         }
 
-        private async void CopyMessage_Click(object sender, RoutedEventArgs e)
+        public ICommand CopyMessageCommand
+        {
+            get
+            {
+                return new AsyncDelegateCommand(CopyMessage, canExecute: () =>
+                {
+                    return SelectedMessage != null;
+                });
+            }
+        }
+
+        private async Task CopyMessage()
         {
             var selectionStart = textBoxMessage.SelectionStart;
             var selectionLength = textBoxMessage.SelectionLength;
@@ -179,6 +179,11 @@ namespace KafkaTools
 
             textBoxMessage.SelectionStart = selectionStart;
             textBoxMessage.SelectionLength = selectionLength;
+        }
+
+        private async void CopyMessage_Click(object sender, RoutedEventArgs e)
+        {
+            await Task.CompletedTask;
         }
 
         private void LogBufferSink_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -360,6 +365,7 @@ namespace KafkaTools
                 }
 
                 RaisePropertyChanged(nameof(SelectedMessage));
+                RaisePropertyChanged(nameof(CopyMessageCommand));
             }
         }
 
@@ -423,6 +429,22 @@ namespace KafkaTools
                     // TODO implement stop consumign if it is last topic?
                 }
             });
+        }
+
+        private TopicInfo _selectedTopic;
+
+        public TopicInfo SelectedTopic
+        {
+            get { return _selectedTopic; }
+            set
+            {
+                _selectedTopic = value;
+                RaisePropertyChanged(nameof(SelectedTopic));
+
+                // TODO investigate if this is the better option
+                Messages = _selectedEnvironment.SelectedTopic?.Messages
+                    ?? new ObservableCollection<JsonMessage>();
+            }
         }
 
         #endregion

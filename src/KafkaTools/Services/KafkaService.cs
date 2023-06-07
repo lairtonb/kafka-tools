@@ -33,20 +33,20 @@ namespace KafkaTools.Services
         public const byte MagicByte = 0;
     }
 
-    public class KafkaServices
+    public class KafkaService
     {
         private readonly IMemoryCache _envCache;
         private readonly INotificationManager _notificationManager;
 
         private readonly Dispatcher _dispatcher;
         private readonly AppSettings _appSettings;
-        private readonly ILogger<KafkaServices> _logger;
+        private readonly ILogger<KafkaService> _logger;
         private CancellationTokenSource _cancellationTokenSource;
 
         public object JsonConvert { get; private set; }
 
-        public KafkaServices(IMemoryCache envCache, INotificationManager notificationManager,
-            IOptions<AppSettings> options, ILogger<KafkaServices> logger)
+        public KafkaService(IMemoryCache envCache, INotificationManager notificationManager,
+            IOptions<AppSettings> options, ILogger<KafkaService> logger)
         {
             _envCache = envCache;
             _notificationManager = notificationManager;
@@ -174,7 +174,7 @@ namespace KafkaTools.Services
 
                     if (consumeResult == null)
                     {
-                        throw new KafkaServicesException("Cabol!");
+                        throw new KafkaServiceException("Cabol!");
                     }
 
                     if (consumeResult.IsPartitionEOF)
