@@ -448,6 +448,59 @@ namespace KafkaTools
         }
 
         #endregion
+
+        private void DataGridMessages_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            var row = e.Row;
+
+            var jsonMessage = row.DataContext as JsonMessage;
+
+            if (jsonMessage == null)
+            {
+                return;
+            }
+
+            if (jsonMessage.Loaded)
+            {
+                return;
+            }
+
+            jsonMessage.Loaded = true;
+
+            if (FindResource("RowAnimationStoryboard") is Storyboard rowAnimation)
+            {
+                row.Tag = rowAnimation;
+
+                // Set the desired duration for the rowAnimation
+                var animationDuration = TimeSpan.FromSeconds(5); // Adjust the duration as needed
+                rowAnimation.Duration = new Duration(animationDuration);
+
+                // Create a new SolidColorBrush to animate
+                var brush = new SolidColorBrush(Colors.White);
+                row.Background = brush;
+
+                // Set the SolidColorBrush as the target for the rowAnimation
+                rowAnimation?.SetValue(Storyboard.TargetPropertyProperty, new PropertyPath("(DataGridRow.Background).(SolidColorBrush.Color)", Array.Empty<object>()));
+                rowAnimation?.SetValue(Storyboard.TargetPropertyProperty, new PropertyPath("(DataGridRow.Foreground).(SolidColorBrush.Color)", Array.Empty<object>()));
+
+                // Begin the rowAnimation
+                row.BeginStoryboard(rowAnimation);
+            }
+        }
+
+        private void DataGridMessages_UnloadingRow(object sender, DataGridRowEventArgs e)
+        {
+            var row = e.Row;
+            if (row.Tag is Storyboard rowAnimation)
+            {
+                // Stop the rowAnimation, so the row is reusable in its normal state
+                rowAnimation.Stop();
+            }
+
+            // Set the final desired style of the row
+            row.Background = Brushes.White;
+            row.Foreground = Brushes.Black;
+        }
     }
 
 

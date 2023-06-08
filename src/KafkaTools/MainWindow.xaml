@@ -37,6 +37,12 @@
             <BitmapImage x:Key="PlayImage" UriSource="Images/icons8-play-16.png" />
             <BitmapImage x:Key="PlayImageDisabled" UriSource="Images/PlayDisabled.png" />
             <BitmapImage x:Key="PauseImage" UriSource="Images/icons8-pause-16.png" />
+            <Storyboard x:Key="RowAnimationStoryboard">
+                <ColorAnimation From="IndianRed" To="White" Duration="0:0:1.5" AutoReverse="False" RepeatBehavior="1x" 
+                            Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)" />
+                <ColorAnimation From="White" To="Black" Duration="0:0:0.5" AutoReverse="False" RepeatBehavior="1x" 
+                            Storyboard.TargetProperty="(DataGridRow.Foreground).(SolidColorBrush.Color)" />
+            </Storyboard>
         </ResourceDictionary>
     </Window.Resources>    
     <Grid>
