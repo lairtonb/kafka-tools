@@ -280,8 +280,14 @@
                                 </Label>
                             </Grid>
                             <Grid Grid.Row="2" Background="#FFF9F9F9">
-                                <DataGrid  
-                                    Name="dataGridMessages" AutoGenerateColumns="False"
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="24"/>                                        
+                                    </Grid.RowDefinitions>
+                                    <DataGrid Grid.Row="0" 
+                                    Name="dataGridMessages" 
+                                    AutoGenerateColumns="False"
                                     ItemsSource="{Binding Path=SelectedEnvironment.SelectedTopic.Messages}"
                                     SelectedItem="{Binding SelectedMessage}"
                                     Style="{StaticResource {x:Type DataGrid}}"
@@ -293,26 +299,35 @@
                                     AlternationCount="1" 
                                     AlternatingRowBackground="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" 
                                     HorizontalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}" 
-                                    VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="Auto" />
-                                        <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="Auto" />
-                                        <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, Converter={StaticResource TimestampConverter}}" Width="Auto" />
-                                    </DataGrid.Columns>
-                                    <d:DataGrid.ItemsSource>
-                                        <x:Array Type="{x:Type local:JsonMessage}">
-                                            <!-- Design-time data items -->
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="1" Value="5/30/2023 8:15:51 PM" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="2" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="3" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="4" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="5" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="6" Value="3" />
-                                            <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="7" Value="3" />
-                                            <!-- Add more items as needed -->
-                                        </x:Array>
-                                    </d:DataGrid.ItemsSource>
-                                </DataGrid>
+                                    VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}"
+                                    LoadingRow="DataGridMessages_LoadingRow"
+                                    UnloadingRow="DataGridMessages_UnloadingRow">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="Auto" />
+                                            <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="Auto" />
+                                            <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, Converter={StaticResource TimestampConverter}}" Width="Auto" />
+                                        </DataGrid.Columns>
+                                        <d:DataGrid.ItemsSource>
+                                            <x:Array Type="{x:Type local:JsonMessage}">
+                                                <!-- Design-time data items -->
+                                                <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="1" Value="5/30/2023 8:15:51 PM" />
+                                                <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="2" Value="3" />
+                                                <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="3" Value="3" />
+                                                <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="4" Value="3" />
+                                                <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="5" Value="3" />
+                                                <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="6" Value="3" />
+                                                <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="7" Value="3" />
+                                                <!-- Add more items as needed -->
+                                            </x:Array>
+                                        </d:DataGrid.ItemsSource>
+                                    </DataGrid>
+                                    <CheckBox Grid.Row="1"
+                                              x:Name="autoScrollCheckBox" 
+                                              Content="Auto Scroll" 
+                                              Margin="10,0,0,0"
+                                              Checked="AutoScrollCheckBox_Checked" 
+                                              Unchecked="AutoScrollCheckBox_Unchecked" />
+                                </Grid>
                             </Grid>
                         </Grid>
                         <GridSplitter Grid.Column="3" Background="#FFF" Width="5" HorizontalAlignment="Stretch"/>

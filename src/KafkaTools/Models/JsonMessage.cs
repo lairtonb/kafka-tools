@@ -26,6 +26,7 @@ namespace KafkaTools
         public string Value { get; set; }
         public Timestamp Timestamp { get; set; }
         public long Offset { get; set; }
+        public bool Loaded { get; internal set; }
 
         public Message<string, string> ToMessage()
         {

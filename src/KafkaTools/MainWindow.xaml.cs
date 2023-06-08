@@ -35,6 +35,7 @@ using KafkaTools.Configuration;
 using Microsoft.Extensions.Options;
 using Serilog.Core;
 using KafkaTools.Common;
+using System.Windows.Media.Animation;
 
 namespace KafkaTools
 {
@@ -500,6 +501,30 @@ namespace KafkaTools
             // Set the final desired style of the row
             row.Background = Brushes.White;
             row.Foreground = Brushes.Black;
+        }
+
+        private void AutoScrollCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (SelectedEnvironment.SelectedTopic != null)
+            {
+                SelectedEnvironment.SelectedTopic.Messages.CollectionChanged += DataGrid_ScrollChanged;
+            }
+        }
+
+        private void AutoScrollCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (SelectedEnvironment.SelectedTopic != null)
+            {
+                SelectedEnvironment.SelectedTopic.Messages.CollectionChanged -= DataGrid_ScrollChanged;
+            }
+        }
+
+        private void DataGrid_ScrollChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (autoScrollCheckBox.IsChecked == true && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            {
+                dataGridMessages.ScrollIntoView(SelectedEnvironment?.SelectedTopic?.Messages?.Last());
+            }
         }
     }
 
