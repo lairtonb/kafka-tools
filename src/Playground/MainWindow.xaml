@@ -5,7 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Playground"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="600">
+        Title="MainWindow" Height="600" 
+        d:DesignWidth="900"
+        Width="1100">
 
     <Window.Resources>
         <ControlTemplate x:Key="NavigationTemplate" TargetType="Frame">
@@ -60,6 +62,10 @@
                     Content="Sample 02" 
                     Margin="5,0,5,5" 
                     Click="Button_Click_1" />
+            <Button Height="25" 
+                    Content="Animations" 
+                    Margin="5,0,5,5" 
+                    Click="Button_Click_3" />            
         </StackPanel>
         <GridSplitter Grid.Column="1" 
                       HorizontalAlignment="Center" 

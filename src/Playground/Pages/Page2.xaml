@@ -15,6 +15,7 @@
             <RowDefinition Height="32" />
             <RowDefinition Height="32" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="300" />
         </Grid.RowDefinitions>
         <TextBlock 
                 Grid.Row="0"                
@@ -38,6 +39,27 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-
+        <Grid Grid.Row="3" Background="AntiqueWhite">
+            <Button Content="Button" 
+                    Width="200" 
+                    Height="28"
+                    Name="btnImgBrush" 
+                    HorizontalAlignment="Left"
+                    Margin="10,0,0,0"
+                    Background="LightGray">
+                <Button.Triggers>
+                    <EventTrigger RoutedEvent="Button.MouseLeave">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation To="Green" 
+                                    Storyboard.TargetProperty="(Button.Background).(SolidColorBrush.Color)" 
+                                    FillBehavior="Stop" 
+                                    Duration="0:0:1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </Button.Triggers>
+            </Button>
+        </Grid>        
     </Grid>
 </Page>

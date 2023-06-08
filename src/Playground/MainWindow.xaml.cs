@@ -35,5 +35,10 @@ namespace Playground
         {
             FrameContent.Navigate(new Page2());
         }
+
+        private void Button_Click_3(object sender, RoutedEventArgs e)
+        {
+            FrameContent.Navigate(new Animations());
+        }
     }
 }
