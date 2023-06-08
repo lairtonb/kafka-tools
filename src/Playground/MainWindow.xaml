@@ -65,7 +65,11 @@
             <Button Height="25" 
                     Content="Animations" 
                     Margin="5,0,5,5" 
-                    Click="Button_Click_3" />            
+                    Click="Button_Click_3" />
+            <Button Height="25" 
+                    Content="Cell Editing" 
+                    Margin="5,0,5,5" 
+                    Click="Button_CellEditing_Click" />
         </StackPanel>
         <GridSplitter Grid.Column="1" 
                       HorizontalAlignment="Center" 

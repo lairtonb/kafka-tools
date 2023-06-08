@@ -40,5 +40,10 @@ namespace Playground
         {
             FrameContent.Navigate(new Animations());
         }
+
+        private void Button_CellEditing_Click(object sender, RoutedEventArgs e)
+        {
+            FrameContent.Navigate(new CellEditing());
+        }
     }
 }
