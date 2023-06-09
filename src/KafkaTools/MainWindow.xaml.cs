@@ -36,6 +36,7 @@ using Microsoft.Extensions.Options;
 using Serilog.Core;
 using KafkaTools.Common;
 using System.Windows.Media.Animation;
+using KafkaTools.ViewModels;
 
 namespace KafkaTools
 {
@@ -50,8 +51,6 @@ namespace KafkaTools
 
         private readonly KafkaService _kafkaServices;
         private readonly INotificationManager _notificationManager;
-        private readonly ILogger<MainWindow> _logger;
-        private readonly ILoggerFactory _loggerFactory;
         private readonly ObservableCollection<EnvironmentInfo> _environments;
         private readonly KafkaViewModel _kafkaViewModel;
         private readonly CircularBufferSink _logBufferSink;
@@ -66,7 +65,6 @@ namespace KafkaTools
         public MainWindow(KafkaService kafkaServices,
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
-            ILoggerFactory loggerFactory,
             KafkaViewModel kafkaViewModel)
         {
             InitializeComponent();
@@ -76,10 +74,7 @@ namespace KafkaTools
 
             _kafkaServices = kafkaServices;
             _notificationManager = notificationManager;
-            _loggerFactory = loggerFactory;
             _kafkaViewModel = kafkaViewModel;
-
-            _logger = _loggerFactory.CreateLogger<MainWindow>();
 
             // Need to think a little better how to handle this.
             _environments = kafkaViewModel.Environments;
@@ -88,68 +83,12 @@ namespace KafkaTools
             DataContext = this;
         }
 
-        private async Task Connect()
+        public KafkaViewModel KafkaViewModel
         {
-            try
+            get
             {
-                Dispatcher.Invoke(() => _selectedEnvironment.Status = ConnectionStatus.Connecting);
-
-                var topics = await _kafkaServices.GetTopicsAsync(_selectedEnvironment.EnvironmentName);
-
-                Dispatcher.Invoke(() =>
-                {
-                    Topics.Clear();
-
-                    _selectedEnvironment.Status = ConnectionStatus.Connected;
-                    foreach (var topic in topics)
-                    {
-                        var topicLogger = _loggerFactory.CreateLogger(topic);
-                        Dispatcher.Invoke(() =>
-                        {
-                            Topics.Add(new TopicInfo(topic, _notificationManager, topicLogger));
-                        });
-                    }
-
-                    TopicsCollectionView = CollectionViewSource.GetDefaultView(Topics);
-                    TopicsCollectionView.Refresh();
-                });
+                return _kafkaViewModel;
             }
-            catch (KafkaException ex) when (ex.Error.IsLocalError)
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    _logger.LogError(ex, ex.Message);
-                    _notificationManager.CloseAllAsync();
-                    _notificationManager.ShowAsync(new NotificationContent
-                    {
-                        Title = "Error",
-                        Message = ex.Message,
-                        Type = NotificationType.Error
-                    }, "WindowArea", TimeSpan.FromSeconds(10));
-                    Topics.Clear();
-                });
-            }
-            catch (Exception ex)
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    _logger.LogError(ex, ex.Message);
-                    _notificationManager.CloseAllAsync();
-                    _notificationManager.ShowAsync(new NotificationContent
-                    {
-                        Title = "Error",
-                        Message = ex.Message,
-                        Type = NotificationType.Error
-                    }, "WindowArea", TimeSpan.FromSeconds(10));
-                    Topics.Clear();
-                });
-            }
-
-        }
-
-        private void Window_Closed(object sender, EventArgs e)
-        {
-            Application.Current.Shutdown(0);
         }
 
         public ICommand CopyMessageCommand
@@ -293,6 +232,7 @@ namespace KafkaTools
             }
         }
 
+
         private ICollectionView topicsCollectionView;
 
         public ICollectionView TopicsCollectionView
@@ -306,27 +246,6 @@ namespace KafkaTools
                     RaisePropertyChanged(nameof(TopicsCollectionView));
                 }
             }
-        }
-
-        private string topicNameFilter;
-        public string TopicNameFilter
-        {
-            get { return topicNameFilter; }
-            set
-            {
-                if (topicNameFilter != value)
-                {
-                    topicNameFilter = value;
-                    RaisePropertyChanged(nameof(TopicNameFilter));
-                    ApplyFilter();
-                }
-            }
-        }
-
-        private void ApplyFilter()
-        {
-            TopicsCollectionView.Filter = item => string.IsNullOrEmpty(TopicNameFilter) || ((TopicInfo)item).TopicName.Contains(TopicNameFilter);
-            TopicsCollectionView.Refresh();
         }
 
         private ObservableCollection<JsonMessage> _selectedMessages = new();
@@ -389,30 +308,6 @@ namespace KafkaTools
             }
         }
 
-        private void ButtonConnect_Click(object sender, RoutedEventArgs e)
-        {
-            if (_selectedEnvironment == null)
-            {
-                e.Handled = true;
-                return;
-            }
-
-            if (this.SelectedEnvironment.Status != ConnectionStatus.Connected)
-            {
-                _ = Connect();
-            }
-            else
-            {
-                _ = Disconnect();
-            }
-        }
-
-        private async Task Disconnect()
-        {
-
-            await Task.CompletedTask;
-        }
-
         private void SubscribeToTopic_Click(object sender, RoutedEventArgs e)
         {
             Task.Run(async () =>
@@ -421,7 +316,7 @@ namespace KafkaTools
                 {
                     _kafkaServices.Subscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
                     _selectedEnvironment.SelectedTopic.Subscribed = true;
-                    await _kafkaServices.StartConsumingAsync(SelectedEnvironment, _selectedEnvironment.SelectedTopic.TopicName);
+                    await _kafkaServices.StartConsumingAsync(_selectedEnvironment, _selectedEnvironment.SelectedTopic.TopicName);
                 }
                 else
                 {
@@ -454,9 +349,7 @@ namespace KafkaTools
         {
             var row = e.Row;
 
-            var jsonMessage = row.DataContext as JsonMessage;
-
-            if (jsonMessage == null)
+            if (row.DataContext is not JsonMessage jsonMessage)
             {
                 return;
             }
@@ -484,7 +377,7 @@ namespace KafkaTools
                 rowAnimation?.SetValue(Storyboard.TargetPropertyProperty, new PropertyPath("(DataGridRow.Background).(SolidColorBrush.Color)", Array.Empty<object>()));
                 rowAnimation?.SetValue(Storyboard.TargetPropertyProperty, new PropertyPath("(DataGridRow.Foreground).(SolidColorBrush.Color)", Array.Empty<object>()));
 
-                // Begin the rowAnimation
+                // Begin the rowAnimation, background starts red"ish" and fades to white
                 row.BeginStoryboard(rowAnimation);
             }
         }
@@ -505,17 +398,17 @@ namespace KafkaTools
 
         private void AutoScrollCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            if (SelectedEnvironment.SelectedTopic != null)
+            if (_selectedEnvironment.SelectedTopic != null)
             {
-                SelectedEnvironment.SelectedTopic.Messages.CollectionChanged += DataGrid_ScrollChanged;
+                _selectedEnvironment.SelectedTopic.Messages.CollectionChanged += DataGrid_ScrollChanged;
             }
         }
 
         private void AutoScrollCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (SelectedEnvironment.SelectedTopic != null)
+            if (_selectedEnvironment.SelectedTopic != null)
             {
-                SelectedEnvironment.SelectedTopic.Messages.CollectionChanged -= DataGrid_ScrollChanged;
+                _selectedEnvironment.SelectedTopic.Messages.CollectionChanged -= DataGrid_ScrollChanged;
             }
         }
 
@@ -525,6 +418,11 @@ namespace KafkaTools
             {
                 dataGridMessages.ScrollIntoView(SelectedEnvironment?.SelectedTopic?.Messages?.Last());
             }
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            Application.Current.Shutdown(0);
         }
     }
 

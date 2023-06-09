@@ -17,6 +17,7 @@ using KafkaTools.Logging;
 using Serilog.Events;
 using Microsoft.Extensions.Logging;
 using KafkaTools.Configuration;
+using KafkaTools.ViewModels;
 
 namespace KafkaTools
 {

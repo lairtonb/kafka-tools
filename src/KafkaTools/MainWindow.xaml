@@ -6,6 +6,8 @@
         mc:Ignorable="d"
         
         xmlns:local="clr-namespace:KafkaTools"
+        xmlns:vm="clr-namespace:KafkaTools.ViewModels"
+        
         xmlns:valueConverters="clr-namespace:KafkaTools.ValueConverters"
         xmlns:notifications="clr-namespace:Notifications.Wpf.Core.Controls;assembly=Notifications.Wpf.Core"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"        
@@ -99,9 +101,8 @@
                                         Margin="150,36,10,0"
                                         Width="90" 
                                         Height="22"                                        
-                                        Click="ButtonConnect_Click"                                        
                                         DataContext="{Binding Path=SelectedEnvironment}"
-                                        IsEnabled="{Binding Path=Status, Converter={StaticResource ConnectingToBooleanConverter}}">
+                                        Command="{Binding ConnectToSelectedEnvironmentCommand}">
                                     <StackPanel
                                         Orientation="Horizontal"
                                         HorizontalAlignment="Left"                                        
@@ -178,10 +179,12 @@
                                          Margin="10,89,10,0"                              
                                          TextWrapping="Wrap" 
                                          VerticalAlignment="Top"
+                                         DataContext="{Binding Path=SelectedEnvironment}"
                                          Text="{Binding TopicNameFilter, UpdateSourceTrigger=PropertyChanged}"
                                          />
-                                <ListBox ItemsSource="{Binding TopicsCollectionView}"
-                                         SelectedItem="{Binding SelectedEnvironment.SelectedTopic}"
+                                <ListBox DataContext="{Binding Path=SelectedEnvironment}"
+                                         ItemsSource="{Binding TopicsCollectionView}"
+                                         SelectedItem="{Binding SelectedTopic}"
                                          d:ItemsSource="{d:SampleData ItemCount=5}" 
                                          Margin="10,112,10,10">
                                     <ListBox.ItemTemplate>
