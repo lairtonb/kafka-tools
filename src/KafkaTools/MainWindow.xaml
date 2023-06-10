@@ -309,7 +309,8 @@
                                             <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="Auto" />
                                             <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="Auto" />
                                             <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, Converter={StaticResource TimestampConverter}}" Width="Auto" />
-                                        </DataGrid.Columns>
+                                            <DataGridTextColumn Header="" Width="*" MinWidth="1" />
+                                        </DataGrid.Columns>                                       
                                         <d:DataGrid.ItemsSource>
                                             <x:Array Type="{x:Type local:JsonMessage}">
                                                 <!-- Design-time data items -->

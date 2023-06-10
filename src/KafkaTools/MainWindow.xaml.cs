@@ -37,6 +37,7 @@ using Serilog.Core;
 using KafkaTools.Common;
 using System.Windows.Media.Animation;
 using KafkaTools.ViewModels;
+using Serilog;
 
 namespace KafkaTools
 {
@@ -53,6 +54,7 @@ namespace KafkaTools
         private readonly INotificationManager _notificationManager;
         private readonly ObservableCollection<EnvironmentInfo> _environments;
         private readonly KafkaViewModel _kafkaViewModel;
+        private readonly ILogger<MainWindow> _logger;
         private readonly CircularBufferSink _logBufferSink;
 
         /// <summary>
@@ -65,7 +67,8 @@ namespace KafkaTools
         public MainWindow(KafkaService kafkaServices,
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
-            KafkaViewModel kafkaViewModel)
+            KafkaViewModel kafkaViewModel,
+            ILogger<MainWindow> logger)
         {
             InitializeComponent();
 
@@ -75,6 +78,8 @@ namespace KafkaTools
             _kafkaServices = kafkaServices;
             _notificationManager = notificationManager;
             _kafkaViewModel = kafkaViewModel;
+
+            _logger = logger;
 
             // Need to think a little better how to handle this.
             _environments = kafkaViewModel.Environments;
@@ -351,7 +356,24 @@ namespace KafkaTools
 
             if (row.DataContext is not JsonMessage jsonMessage)
             {
+                _logger.LogInformation("Skipping");
                 return;
+            }
+
+            // Set the final desired style of the row
+            row.Foreground = Brushes.Black;
+
+            var rowIndex = jsonMessage.Offset % 2;
+
+            _logger.LogInformation("jsonMessage: {jsonMessage}, rowIndex: {rowIndex}", jsonMessage.Offset, rowIndex);
+
+            if (rowIndex == 0)
+            {
+                row.Background = Brushes.White;
+            }
+            else if (rowIndex == 1)
+            {
+                row.Background = SystemColors.ControlLightBrush;
             }
 
             if (jsonMessage.Loaded)
@@ -361,39 +383,66 @@ namespace KafkaTools
 
             jsonMessage.Loaded = true;
 
-            if (FindResource("RowAnimationStoryboard") is Storyboard rowAnimation)
+            if (FindResource("RowAnimationStoryboard") is Storyboard storyBoard)
             {
-                row.Tag = rowAnimation;
+                row.Tag = storyBoard;
 
-                // Set the desired duration for the rowAnimation
+                // Set the desired duration for the storyBoard
                 var animationDuration = TimeSpan.FromSeconds(5); // Adjust the duration as needed
-                rowAnimation.Duration = new Duration(animationDuration);
+                storyBoard.Duration = new Duration(animationDuration);
+
+                // var rowIndex = row.GetIndex();
+                // var alternatingRowIndex = rowIndex % 2;
 
                 // Create a new SolidColorBrush to animate
-                var brush = new SolidColorBrush(Colors.White);
-                row.Background = brush;
+                // SolidColorBrush brush;
+                if (rowIndex == 0)
+                {
+                    // brush = new SolidColorBrush(Colors.White);
+                    storyBoard.Children[0].SetValue(ColorAnimation.ToProperty, Brushes.White.Color);
+                }
+                else
+                {
+                    // brush = new SolidColorBrush(SystemColors.ControlLightBrush.Color);
+                    storyBoard.Children[0].SetValue(ColorAnimation.ToProperty, SystemColors.ControlLightBrush.Color);
+                }
+                // row.Background = brush;
 
-                // Set the SolidColorBrush as the target for the rowAnimation
-                rowAnimation?.SetValue(Storyboard.TargetPropertyProperty, new PropertyPath("(DataGridRow.Background).(SolidColorBrush.Color)", Array.Empty<object>()));
-                rowAnimation?.SetValue(Storyboard.TargetPropertyProperty, new PropertyPath("(DataGridRow.Foreground).(SolidColorBrush.Color)", Array.Empty<object>()));
-
-                // Begin the rowAnimation, background starts red"ish" and fades to white
-                row.BeginStoryboard(rowAnimation);
+                // Begin the storyBoard, background starts red"ish" and fades to white
+                row.BeginStoryboard(storyBoard);
             }
         }
 
         private void DataGridMessages_UnloadingRow(object sender, DataGridRowEventArgs e)
         {
+            /*
             var row = e.Row;
-            if (row.Tag is Storyboard rowAnimation)
+
+            if (row.Tag is not Storyboard rowAnimation)
             {
-                // Stop the rowAnimation, so the row is reusable in its normal state
-                rowAnimation.Stop();
+                return;
             }
 
+            if (row.DataContext is not JsonMessage)
+            {
+                return;
+            }
+
+            // Stop the storyBoard, so the row is reusable in its normal state
+            rowAnimation.Stop();
+
             // Set the final desired style of the row
-            row.Background = Brushes.White;
             row.Foreground = Brushes.Black;
+
+            if (row.AlternationIndex == 0)
+            {
+                row.Background = Brushes.White;
+            }
+            else
+            {
+                row.Background = SystemColors.ControlLightBrush;
+            }
+            */
         }
 
         private void AutoScrollCheckBox_Checked(object sender, RoutedEventArgs e)
