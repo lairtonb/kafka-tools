@@ -332,23 +332,11 @@ namespace KafkaTools
             });
         }
 
-        private TopicInfo _selectedTopic;
-
-        public TopicInfo SelectedTopic
-        {
-            get { return _selectedTopic; }
-            set
-            {
-                _selectedTopic = value;
-                RaisePropertyChanged(nameof(SelectedTopic));
-
-                // TODO investigate if this is the better option
-                Messages = _selectedEnvironment.SelectedTopic?.Messages
-                    ?? new ObservableCollection<JsonMessage>();
-            }
-        }
-
         #endregion
+
+
+
+
 
         private void DataGridMessages_LoadingRow(object sender, DataGridRowEventArgs e)
         {
@@ -415,7 +403,6 @@ namespace KafkaTools
 
         private void DataGridMessages_UnloadingRow(object sender, DataGridRowEventArgs e)
         {
-            /*
             var row = e.Row;
 
             if (row.Tag is not Storyboard rowAnimation)
@@ -442,7 +429,6 @@ namespace KafkaTools
             {
                 row.Background = SystemColors.ControlLightBrush;
             }
-            */
         }
 
         private void AutoScrollCheckBox_Checked(object sender, RoutedEventArgs e)

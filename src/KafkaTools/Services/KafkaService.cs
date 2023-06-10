@@ -199,12 +199,13 @@ namespace KafkaTools.Services
                     var magicByte = reader.ReadByte();
                     if (magicByte != ConfluentConstants.MagicByte)
                     {
-                        // throw new InvalidDataException($"Expecting data with Confluent Schema Registry framing. Magic byte was {consumeResult.Message.Value[0]}, expecting {ConfluentConstants.MagicByte}");
+                        // throw new InvalidDataException($"Expecting data with Confluent Schema Registry framing.
+                        // Magic byte was {consumeResult.Message.Value[0]}, expecting {ConfluentConstants.MagicByte}");
                         stream.Position = 0;
                     }
                     else
                     {
-                        // Discard the id, since we are not considering it at this moment
+                        // Discard the regitryId, since we are not considering it at this moment
                         _ = IPAddress.NetworkToHostOrder(reader.ReadInt32());
                     }
 
