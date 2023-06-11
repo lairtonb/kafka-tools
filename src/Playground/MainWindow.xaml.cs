@@ -45,5 +45,14 @@ namespace Playground
         {
             FrameContent.Navigate(new CellEditing());
         }
+        private void Button_ListBoxRowAnimation_Click(object sender, RoutedEventArgs e)
+        {
+            FrameContent.Navigate(new ListBoxRowAnimation());
+        }
+
+        private void Button_DataGridRowAnimation_Click(object sender, RoutedEventArgs e)
+        {
+            FrameContent.Navigate(new DataGridRowAnimation());
+        }
     }
 }

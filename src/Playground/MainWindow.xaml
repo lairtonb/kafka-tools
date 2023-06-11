@@ -70,6 +70,14 @@
                     Content="Cell Editing" 
                     Margin="5,0,5,5" 
                     Click="Button_CellEditing_Click" />
+            <Button Height="25" 
+                    Content="ListBox Row Animation" 
+                    Margin="5,0,5,5" 
+                    Click="Button_ListBoxRowAnimation_Click" />
+            <Button Height="25" 
+                    Content="DataGrid Row Animation" 
+                    Margin="5,0,5,5" 
+                    Click="Button_DataGridRowAnimation_Click" />
         </StackPanel>
         <GridSplitter Grid.Column="1" 
                       HorizontalAlignment="Center" 
