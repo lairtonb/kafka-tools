@@ -348,13 +348,17 @@ namespace KafkaTools
                 return;
             }
 
+            if (jsonMessage.Loaded)
+            {
+                return;
+            }
+
             // Set the final desired style of the row
             row.Foreground = Brushes.Black;
 
+            // Create solid color brushes to animate for each row
             var rowIndex = jsonMessage.Offset % 2;
-
             _logger.LogInformation("jsonMessage: {jsonMessage}, rowIndex: {rowIndex}", jsonMessage.Offset, rowIndex);
-
             if (rowIndex == 0)
             {
                 row.Background = Brushes.White;
@@ -362,11 +366,6 @@ namespace KafkaTools
             else if (rowIndex == 1)
             {
                 row.Background = SystemColors.ControlLightBrush;
-            }
-
-            if (jsonMessage.Loaded)
-            {
-                return;
             }
 
             jsonMessage.Loaded = true;
@@ -379,22 +378,15 @@ namespace KafkaTools
                 var animationDuration = TimeSpan.FromSeconds(5); // Adjust the duration as needed
                 storyBoard.Duration = new Duration(animationDuration);
 
-                // var rowIndex = row.GetIndex();
-                // var alternatingRowIndex = rowIndex % 2;
-
-                // Create a new SolidColorBrush to animate
-                // SolidColorBrush brush;
                 if (rowIndex == 0)
                 {
-                    // brush = new SolidColorBrush(Colors.White);
+
                     storyBoard.Children[0].SetValue(ColorAnimation.ToProperty, Brushes.White.Color);
                 }
                 else
                 {
-                    // brush = new SolidColorBrush(SystemColors.ControlLightBrush.Color);
                     storyBoard.Children[0].SetValue(ColorAnimation.ToProperty, SystemColors.ControlLightBrush.Color);
                 }
-                // row.Background = brush;
 
                 // Begin the storyBoard, background starts red"ish" and fades to white
                 row.BeginStoryboard(storyBoard);
