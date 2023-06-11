@@ -22,6 +22,7 @@
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="Margin" Value="1,2,1,1"/>
+                    <Setter Property="Content" Value="{Binding TopicName}" />
                     <Setter Property="Background" Value="White" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Subscribed}" Value="True">
