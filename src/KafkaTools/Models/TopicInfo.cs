@@ -13,6 +13,14 @@ using Notifications.Wpf.Core;
 
 namespace KafkaTools.Models
 {
+    public class InsertAtTopObservableCollection<T> : ObservableCollection<T>
+    {
+        protected override void InsertItem(int index, T item)
+        {
+            base.InsertItem(0, item);
+        }
+    }
+
     public class TopicInfo : INotifyPropertyChanged
     {
         private readonly INotificationManager _notificationManager;
@@ -31,8 +39,8 @@ namespace KafkaTools.Models
 
         public long Offset { get; private set; }
 
-        public ObservableCollection<JsonMessage> Messages { get; } =
-            new ObservableCollection<JsonMessage>();
+        public InsertAtTopObservableCollection<JsonMessage> Messages { get; } =
+            new InsertAtTopObservableCollection<JsonMessage>();
 
 
         public EventHandler<MessageEventArgs> MessagePublished
