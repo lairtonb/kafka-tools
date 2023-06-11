@@ -29,22 +29,16 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="DataGridStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <local:TimestampConverter x:Key="TimestampConverter" />            
+            <local:TimestampConverter x:Key="TimestampConverter" />
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <valueConverters:BooleanNegationConverter x:Key="BooleanNegationConverter" />
             <valueConverters:ConnectionStatusConnectingToVisibilityConverter x:Key="ConnectingToVisibilityConverter" />
             <valueConverters:ConnectionStatusConnectingToBooleanConverter x:Key="ConnectingToBooleanConverter" />
             <valueConverters:ConnectionStatusToBooleanConverter x:Key="ConnectionStatusToBooleanConverter" />
-            <valueConverters:IsOkToSubscribeConverter x:Key="IsOkToSubscribeConverter" />            
+            <valueConverters:IsOkToSubscribeConverter x:Key="IsOkToSubscribeConverter" />
             <BitmapImage x:Key="PlayImage" UriSource="Images/icons8-play-16.png" />
             <BitmapImage x:Key="PlayImageDisabled" UriSource="Images/PlayDisabled.png" />
             <BitmapImage x:Key="PauseImage" UriSource="Images/icons8-pause-16.png" />
-            <Storyboard x:Key="RowAnimationStoryboard">
-                <ColorAnimation From="IndianRed" To="White" Duration="0:0:1.5" AutoReverse="False" RepeatBehavior="1x" 
-                            Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)" />
-                <ColorAnimation From="White" To="Black" Duration="0:0:0.5" AutoReverse="False" RepeatBehavior="1x" 
-                            Storyboard.TargetProperty="(DataGridRow.Foreground).(SolidColorBrush.Color)" />
-            </Storyboard>
         </ResourceDictionary>
     </Window.Resources>    
     <Grid>
@@ -184,25 +178,43 @@
                                          />
                                 <ListBox DataContext="{Binding Path=SelectedEnvironment}"
                                          ItemsSource="{Binding TopicsCollectionView}"
-                                         SelectedItem="{Binding SelectedTopic}"
+                                         SelectedItem="{Binding SelectedTopic}"                                         
                                          d:ItemsSource="{d:SampleData ItemCount=5}" 
                                          Margin="10,112,10,10">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding TopicName}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="FontWeight" Value="Normal"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Subscribed}" Value="True">
-                                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Content" Value="{Binding TopicName}" />
+                                            <Setter Property="Margin" Value="1,2,1,1"/>
+                                            <Setter Property="Background" Value="White" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Subscribed}" Value="True">
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Path=Updated}" Value="True">
+                                                    <Setter Property="Background" Value="IndianRed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Updated}" Value="True">
+                                                    <DataTrigger.EnterActions>
+                                                        <BeginStoryboard Name="MyBeginStoryboard">
+                                                            <Storyboard>
+                                                                <ColorAnimation
+                                                                    Storyboard.TargetProperty="(ListBoxItem.Background).(SolidColorBrush.Color)"
+                                                                    To="WhiteSmoke"
+                                                                    Duration="0:0:0.8" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </DataTrigger.EnterActions>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Updated}" Value="False">
+                                                    <DataTrigger.EnterActions>
+                                                        <SkipStoryboardToFill BeginStoryboardName="MyBeginStoryboard" />
+                                                        <StopStoryboard BeginStoryboardName="MyBeginStoryboard" />
+                                                        <RemoveStoryboard BeginStoryboardName="MyBeginStoryboard" />
+                                                    </DataTrigger.EnterActions>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
                                 </ListBox>
                             </Grid>
                         </Grid>
@@ -295,22 +307,63 @@
                                     SelectedItem="{Binding SelectedMessage}"
                                     Style="{StaticResource {x:Type DataGrid}}"
                                     Margin="10,0,10,10" 
-                                    SelectionMode="Single"                                     
+                                    SelectionMode="Single"
                                     CanUserAddRows="False" 
                                     CanUserDeleteRows="False" 
-                                    CanUserResizeRows="False"                                     
-                                    AlternationCount="1" 
-                                    AlternatingRowBackground="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" 
-                                    HorizontalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}" 
-                                    VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}"
-                                    LoadingRow="DataGridMessages_LoadingRow"
-                                    UnloadingRow="DataGridMessages_UnloadingRow">
+                                    CanUserResizeRows="False" 
+                                    CanUserSortColumns="False"
+                                    AlternationCount="2" 
+                                    HorizontalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" 
+                                    VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="Auto" />
                                             <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="Auto" />
                                             <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, Converter={StaticResource TimestampConverter}}" Width="Auto" />
                                             <DataGridTextColumn Header="" Width="*" MinWidth="1" />
-                                        </DataGrid.Columns>                                       
+                                        </DataGrid.Columns>
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="{x:Type DataGridRow}">
+                                                <Style.Triggers>
+                                                    <Trigger Property="AlternationIndex" Value="1">
+                                                        <Setter Property="Background" Value="AliceBlue"/>
+                                                    </Trigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=AlternationIndex}" Value="0"/>
+                                                            <Condition Binding="{Binding IsNew}" Value="True" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.EnterActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <ColorAnimation
+                                                                        Storyboard.TargetProperty="(DataGrid.Background).(SolidColorBrush.Color)"
+                                                                        From="IndianRed"
+                                                                        To="White"
+                                                                        Duration="0:0:0.8" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </MultiDataTrigger.EnterActions>
+                                                    </MultiDataTrigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=AlternationIndex}" Value="1"/>
+                                                            <Condition Binding="{Binding IsNew}" Value="True" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.EnterActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <ColorAnimation
+                                                                        Storyboard.TargetProperty="(DataGrid.Background).(SolidColorBrush.Color)"
+                                                                        From="IndianRed"
+                                                                        To="AliceBlue"
+                                                                        Duration="0:0:0.8" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </MultiDataTrigger.EnterActions>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.RowStyle>
                                         <d:DataGrid.ItemsSource>
                                             <x:Array Type="{x:Type local:JsonMessage}">
                                                 <!-- Design-time data items -->

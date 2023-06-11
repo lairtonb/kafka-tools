@@ -1,13 +1,14 @@
 ﻿using Confluent.Kafka;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace KafkaTools
 {
-    public class JsonMessage
+    public class JsonMessage : INotifyPropertyChanged
     {
         public JsonMessage(Message<string, string> message)
         {
@@ -26,7 +27,28 @@ namespace KafkaTools
         public string Value { get; set; }
         public Timestamp Timestamp { get; set; }
         public long Offset { get; set; }
-        public bool Loaded { get; internal set; }
+
+        private bool _isNew = false;
+
+        public bool IsNew
+        {
+            get { return _isNew; }
+            set
+            {
+                _isNew = value;
+                RaisePropertyChanged(nameof(IsNew));
+
+                // Set IsNew back to false after a brief delay
+                if (_isNew)
+                {
+                    Task.Delay(1500).ContinueWith(t =>
+                    {
+                        _isNew = false;
+                        RaisePropertyChanged(nameof(IsNew));
+                    });
+                }
+            }
+        }
 
         public Message<string, string> ToMessage()
         {
@@ -44,6 +66,13 @@ namespace KafkaTools
             }
 
             return message;
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void RaisePropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

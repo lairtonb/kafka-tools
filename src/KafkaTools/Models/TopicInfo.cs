@@ -67,6 +67,8 @@ namespace KafkaTools.Models
                         Offset = e.Offset;
                         Messages.Add(e.Message);
 
+                        this.Updated = true;
+
                         // Change log level to Trace for the topic to see this message
                         _logger.LogTrace(
                             "Received message from \"{TopicName}\", with offset={Offset}, key=\"{Key}\" and timestamp=\"{Timestamp}\"",
@@ -104,6 +106,38 @@ namespace KafkaTools.Models
                         _logger.LogInformation("Unsubscribed from \"{TopicName}\"", TopicName);
                     }
                     RaisePropertyChanged(nameof(Subscribed));
+                }
+            }
+        }
+
+        private bool _updated = false;
+
+        /// <summary>
+        /// <para>
+        /// Set to true when a new item is added to the collection.
+        /// </para>
+        /// </summary>
+        /// <remarks>
+        /// It will automatically revert back to false after a brief delay
+        /// </remarks>
+        public bool Updated
+        {
+            get
+            {
+                return _updated;
+            }
+            set
+            {
+                _updated = value;
+                RaisePropertyChanged(nameof(Updated));
+
+                if (_updated)
+                {
+                    Task.Delay(1500).ContinueWith(t =>
+                    {
+                        _updated = false;
+                        RaisePropertyChanged(nameof(Updated));
+                    });
                 }
             }
         }

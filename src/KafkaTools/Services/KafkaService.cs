@@ -224,6 +224,7 @@ namespace KafkaTools.Services
                     message.Value = valueString;
                     message.Offset = consumeResult.Offset.Value;
                     message.Timestamp = consumeResult.Message.Timestamp;
+                    message.IsNew = true;
 
                     MessagePublished?.Invoke(this, new MessageEventArgs(consumeResult.Topic,
                         consumeResult.Offset, message));
