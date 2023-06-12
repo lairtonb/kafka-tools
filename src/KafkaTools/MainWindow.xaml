@@ -90,13 +90,23 @@
                                 <Button HorizontalAlignment="Left" 
                                         VerticalAlignment="Top"
                                         Margin="150,36,10,0"
-                                        Width="90" 
-                                        Height="22"                                        
+                                        Width="90"
+                                        Height="22"
                                         DataContext="{Binding Path=SelectedEnvironment}"
                                         Command="{Binding ConnectToSelectedEnvironmentCommand}">
+                                    <Button.Style>
+                                        <!-- https://stackoverflow.com/questions/4423746/wpf-mvvm-disable-a-buttons-state-when-the-viewmodel-behind-the-usercontrol-is -->
+                                        <Style TargetType="{x:Type Button}">
+                                            <Style.Triggers>
+                                                <Trigger Property="Command" Value="{x:Null}">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
                                     <StackPanel
                                         Orientation="Horizontal"
-                                        HorizontalAlignment="Left"                                        
+                                        HorizontalAlignment="Left"
                                         Margin="0,0,0,0">
                                         <Image
                                             Source="/images/loading.png"
@@ -105,7 +115,7 @@
                                             Margin="0,0,0,0"
                                             HorizontalAlignment="Left"
                                             RenderTransformOrigin="0.5, 0.5" 
-                                            Visibility="{Binding Status, Converter={StaticResource ConnectingToVisibilityConverter}}">
+                                            Visibility="{Binding Status, Converter={StaticResource ConnectingToVisibilityConverter}, FallbackValue=Collapsed}">
                                             <Image.RenderTransform>
                                                 <RotateTransform x:Name="noFreeze" />
                                             </Image.RenderTransform>
