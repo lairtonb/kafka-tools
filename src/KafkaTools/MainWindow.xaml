@@ -21,9 +21,6 @@
         Height="600" 
         Width="1100" 
         Closed="Window_Closed">
-    <Window.DataContext>
-        <local:MainWindow />
-    </Window.DataContext>
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -402,7 +399,8 @@
                             <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FFF9F9F9">
                                 <Button Width="21" Height="21"                                         
                                         Margin="10 0 0 0" 
-                                        Command="{Binding CopyMessageCommand}">
+                                        Command="{Binding CopyMessageCommand}"
+                                        CommandParameter="{Binding ElementName=textBoxMessage}">
                                     <Image Width="16" Height="16" 
                                            VerticalAlignment="Center" 
                                            HorizontalAlignment="Center"

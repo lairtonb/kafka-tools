@@ -57,13 +57,6 @@ namespace KafkaTools
         private readonly ILogger<MainWindow> _logger;
         private readonly CircularBufferSink _logBufferSink;
 
-        /// <summary>
-        /// Used by XAML to bind to the view model.
-        /// </summary>
-        public MainWindow()
-        {
-        }
-
         public MainWindow(KafkaService kafkaServices,
             INotificationManager notificationManager,
             CircularBufferSink logBufferSink,
@@ -85,7 +78,7 @@ namespace KafkaTools
             _environments = kafkaViewModel.Environments;
             _selectedEnvironment = kafkaViewModel.Environments[0];
 
-            DataContext = this;
+            DataContext = kafkaViewModel;
         }
 
         public KafkaViewModel KafkaViewModel
@@ -94,41 +87,6 @@ namespace KafkaTools
             {
                 return _kafkaViewModel;
             }
-        }
-
-        public ICommand CopyMessageCommand
-        {
-            get
-            {
-                return new AsyncDelegateCommand(CopyMessage, canExecute: () =>
-                {
-                    return SelectedMessage != null;
-                });
-            }
-        }
-
-        private async Task CopyMessage()
-        {
-            var selectionStart = textBoxMessage.SelectionStart;
-            var selectionLength = textBoxMessage.SelectionLength;
-
-            textBoxMessage.SelectAll();
-            textBoxMessage.Copy();
-
-            await _notificationManager.ShowAsync(new NotificationContent
-            {
-                Title = "Information",
-                Message = "Copied",
-                Type = NotificationType.Information
-            }, "WindowArea", expirationTime: TimeSpan.FromMilliseconds(1200));
-
-            textBoxMessage.SelectionStart = selectionStart;
-            textBoxMessage.SelectionLength = selectionLength;
-        }
-
-        private async void CopyMessage_Click(object sender, RoutedEventArgs e)
-        {
-            await Task.CompletedTask;
         }
 
         private void LogBufferSink_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -175,43 +133,6 @@ namespace KafkaTools
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        /****
-        private void InitializeEnvironments(INotificationManager notificationManager, ILoggerFactory loggerFactory)
-        {
-            foreach (var kvp in _appSettings.Environments)
-            {
-                string environmentName = kvp.Key;
-                EnvironmentSettings environmentSettings = kvp.Value;
-
-                EnvironmentInfo environmentInfo = environmentSettings switch
-                {
-                    UserSecretsEnvironmentSettings userSecretsSettings => new EnvironmentInfo(
-                        environmentName,
-                        notificationManager,
-                        loggerFactory.CreateLogger(environmentName),
-                        userSecretsSettings),
-                    KeyVaultEnvironmentSettings keyVaultSettings => new EnvironmentInfo(
-                        environmentName,
-                        notificationManager,
-                        loggerFactory.CreateLogger(environmentName),
-                        keyVaultSettings),
-                    EnvironmentSettings noAuthSettings => new EnvironmentInfo(
-                        environmentName,
-                        notificationManager,
-                        loggerFactory.CreateLogger(environmentName),
-                        noAuthSettings),
-                    _ => throw new NotSupportedException(
-                        $"Unsupported environment settings type: {environmentSettings.GetType().Name}")
-                };
-
-                _environments.Add(environmentInfo);
-            }
-
-            // Need to think a little better how to handle this.
-            _selectedEnvironment = _environments[0];
-        }
-        */
 
         public virtual ObservableCollection<EnvironmentInfo> Environments
         {
@@ -262,54 +183,6 @@ namespace KafkaTools
             {
                 _selectedMessages = value;
                 RaisePropertyChanged(nameof(Messages));
-            }
-        }
-
-        private JsonMessage _selectedMessage;
-
-        readonly Regex messageMatcherRegex = new("^[^{]*?(?={)", RegexOptions.Compiled
-            | RegexOptions.Singleline);
-
-        public JsonMessage SelectedMessage
-        {
-            get { return _selectedMessage; }
-            set
-            {
-                if (_selectedMessage == value)
-                {
-                    return;
-                }
-
-                _selectedMessage = value;
-
-                if (messageMatcherRegex.IsMatch(_selectedMessage?.Value ?? string.Empty))
-                {
-                    var message = messageMatcherRegex.Replace(_selectedMessage?.Value ?? string.Empty, string.Empty);
-                    using var temp = JsonDocument.Parse(message);
-                    SelectedMessageText = JsonSerializer.Serialize(temp, new JsonSerializerOptions { WriteIndented = true });
-                }
-
-                RaisePropertyChanged(nameof(SelectedMessage));
-                RaisePropertyChanged(nameof(CopyMessageCommand));
-            }
-        }
-
-        private string _selectedMessageText;
-
-        public string SelectedMessageText
-        {
-            get { return _selectedMessageText; }
-            set
-            {
-                if (_selectedMessageText == value)
-                {
-                    return;
-                }
-                _selectedMessageText = value;
-
-                _selectedMessage.Value = _selectedMessageText;
-
-                RaisePropertyChanged(nameof(SelectedMessageText));
             }
         }
 

@@ -20,9 +20,51 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Windows;
 using KafkaTools.Services;
+using System.Windows.Controls;
+using static KafkaTools.ViewModels.MyCommand;
 
 namespace KafkaTools.ViewModels
 {
+    public delegate bool CanExecute(TextBox textBox);
+    public delegate Task Execute(TextBox textBox);
+
+    public class MyCommand : ICommand
+    {
+        private readonly CanExecute _canExecute;
+        private readonly Execute _execute;
+
+        public event EventHandler? CanExecuteChanged
+        {
+            add { CommandManager.RequerySuggested += value; }
+            remove { CommandManager.RequerySuggested -= value; }
+        }
+
+        public MyCommand(CanExecute canExecute, Execute execute)
+        {
+            _canExecute = canExecute;
+            _execute = execute;
+        }
+
+        public bool CanExecute(object? parameter)
+        {
+            if (parameter is not TextBox textBox)
+            {
+                return false;
+            }
+
+            // Implement your logic to determine if the command can execute
+            return _canExecute(textBox);
+        }
+
+        public void Execute(object? parameter)
+        {
+            if (parameter is TextBox textBox)
+            {
+                _execute(textBox);
+            }
+        }
+    }
+
     public class KafkaViewModel : ObservableObject
     {
         private readonly ILogger<KafkaViewModel> _logger;
@@ -181,6 +223,33 @@ namespace KafkaTools.ViewModels
             }
         }
 
+        public MyCommand CopyMessageCommand
+        {
+            get
+            {
+                return new MyCommand((_) => SelectedMessage != null, CopyMessage);
+            }
+        }
+
+        private async Task CopyMessage(TextBox textBox)
+        {
+            var selectionStart = textBox.SelectionStart;
+            var selectionLength = textBox.SelectionLength;
+
+            textBox.SelectAll();
+            textBox.Copy();
+
+            await _notificationManager.ShowAsync(new NotificationContent
+            {
+                Title = "Information",
+                Message = "Copied",
+                Type = NotificationType.Information
+            }, "WindowArea", expirationTime: TimeSpan.FromMilliseconds(1200));
+
+            textBox.SelectionStart = selectionStart;
+            textBox.SelectionLength = selectionLength;
+        }
+
         private string _selectedMessageText;
 
         public string SelectedMessageText
@@ -197,6 +266,12 @@ namespace KafkaTools.ViewModels
                 _selectedMessage.Value = _selectedMessageText;
 
                 RaisePropertyChanged(nameof(SelectedMessageText));
+
+                // Forcing the CommandManager to raise the RequerySuggested event
+                CommandManager.InvalidateRequerySuggested();
+
+                // Before, was doing this
+                // RaisePropertyChanged(nameof(CopyMessageCommand));
             }
         }
 
