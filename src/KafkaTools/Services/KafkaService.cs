@@ -205,8 +205,20 @@ namespace KafkaTools.Services
                     }
                     else
                     {
-                        // Discard the regitryId, since we are not considering it at this moment
-                        _ = IPAddress.NetworkToHostOrder(reader.ReadInt32());
+                        var nextByte = reader.ReadByte();
+                        if (nextByte == 123) // 123 (7B HEX) = '{' in ASCII/UTF-8 (first byte of JSON) - not considering Json array (nextByte == 91)
+                        {
+                            // Customization made to work with messages that are not registered in Schema Registry
+                            // but that have the magic byte and the first byte of the message is '{'.
+                            // I don't know if this is the best approach, but it is working for now.
+                            // TODO : Improve this code (will probably rewrite everything when implementing Avro)
+                            stream.Position = 1;
+                        }
+                        else
+                        {
+                            // Discard the regitryId, since we are not considering it at this moment
+                            _ = IPAddress.NetworkToHostOrder(reader.ReadInt32());
+                        }
                     }
 
                     var streamReader = new StreamReader(stream);
