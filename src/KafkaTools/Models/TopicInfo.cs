@@ -4,10 +4,13 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using KafkaTools.Services;
+using KafkaTools.ViewModels;
 using Microsoft.Extensions.Logging;
 using Notifications.Wpf.Core;
 
@@ -23,35 +26,94 @@ namespace KafkaTools.Models
 
     public class TopicInfo : INotifyPropertyChanged
     {
-        private readonly INotificationManager _notificationManager;
-        private readonly ILogger _logger;
+        private readonly INotificationManager? _notificationManager;
+        private readonly ILogger? _logger;
 
         public TopicInfo(string topicName,
-            INotificationManager notificationManager,
-            ILogger logger)
+            INotificationManager? notificationManager,
+            ILogger? logger)
         {
             TopicName = topicName;
             _notificationManager = notificationManager;
             _logger = logger;
         }
 
-        public string TopicName { get; private set; }
+        public TopicInfo() { }
+
+        public string TopicName { get; internal set; }
 
         public long Offset { get; private set; }
 
-        public InsertAtTopObservableCollection<JsonMessage> Messages { get; } =
-            new InsertAtTopObservableCollection<JsonMessage>();
+        public InsertAtTopObservableCollection<JsonMessage> Messages { get; } = new();
 
+        private JsonMessage? _selectedMessage;
 
-        public EventHandler<MessageEventArgs> MessagePublished
+        public JsonMessage? SelectedMessage
         {
-            get
+            get => _selectedMessage;
+            set
             {
-                return OnMessagePublished;
+                if (_selectedMessage == value)
+                {
+                    return;
+                }
+
+                _selectedMessage = value;
+                RaisePropertyChanged(nameof(SelectedMessage));
+
+                if (_selectedMessage == null)
+                {
+                    SelectedMessageText = "";
+                }
+                else
+                {
+                    // Reformat the Json message for better visualization
+                    using var parsedMessage = JsonDocument.Parse(_selectedMessage.Value);
+                    // TODO try passing the message directly, see if it works
+                    // SelectedMessageText = JsonSerializer.Serialize(_selectedMessage.Value,
+                    SelectedMessageText = JsonSerializer.Serialize(parsedMessage,
+                        new JsonSerializerOptions
+                        {
+                            WriteIndented = true
+                        });
+                }
+
             }
         }
 
-        private bool isFirstMessageFlag = true;
+        private string _selectedMessageText;
+
+        public string SelectedMessageText
+        {
+            get => _selectedMessageText;
+            set
+            {
+                if (_selectedMessageText == value)
+                {
+                    return;
+                }
+                _selectedMessageText = value;
+
+                if (string.IsNullOrEmpty(_selectedMessageText))
+                {
+                    // return;
+                }
+
+                // _selectedMessage.Value = _selectedMessageText;
+
+                RaisePropertyChanged(nameof(SelectedMessageText));
+
+                // Forcing the CommandManager to raise the RequerySuggested event
+                CommandManager.InvalidateRequerySuggested();
+
+                // Before, was doing this
+                // RaisePropertyChanged(nameof(CopyMessageCommand));
+            }
+        }
+
+        public EventHandler<MessageEventArgs> MessagePublished => OnMessagePublished;
+
+        private bool _isFirstMessageFlag = true;
 
         private void OnMessagePublished(object? sender, MessageEventArgs e)
         {
@@ -60,17 +122,17 @@ namespace KafkaTools.Models
                 Application.Current?.Dispatcher.Invoke(
                     () =>
                     {
-                        if (isFirstMessageFlag)
+                        if (_isFirstMessageFlag)
                         {
-                            isFirstMessageFlag = false;
-                            _notificationManager.CloseAsync(identifier);
-                            _notificationManager.ShowAsync(new NotificationContent
+                            _isFirstMessageFlag = false;
+                            _notificationManager?.CloseAsync(_identifier);
+                            _notificationManager?.ShowAsync(new NotificationContent
                             {
                                 Title = "Information",
                                 Message = $"Receiving messages from \"{TopicName}\"",
                                 Type = NotificationType.Information
                             }, "WindowArea");
-                            _logger.LogInformation("Receiving messages from \"{TopicName}\"", TopicName);
+                            _logger?.LogInformation("Receiving messages from \"{TopicName}\"", TopicName);
                         }
                         Offset = e.Offset;
                         Messages.Add(e.Message);
@@ -78,7 +140,7 @@ namespace KafkaTools.Models
                         this.Updated = true;
 
                         // Change log level to Trace for the topic to see this message
-                        _logger.LogTrace(
+                        _logger?.LogTrace(
                             "Received message from \"{TopicName}\", with offset={Offset}, key=\"{Key}\" and timestamp=\"{Timestamp}\"",
                             TopicName, e.Offset, e.Message.Key, e.Message.Timestamp.UtcDateTime
                         );
@@ -86,32 +148,37 @@ namespace KafkaTools.Models
             }
         }
 
-        private bool subscribed = false;
-        private readonly Guid identifier = Guid.NewGuid();
+        private bool _subscribed = false;
+        private readonly Guid _identifier = Guid.NewGuid();
 
         public bool Subscribed
         {
-            get { return this.subscribed; }
+            get => _subscribed;
             internal set
             {
-                if (this.subscribed != value)
+                if (_subscribed != value)
                 {
-                    this.subscribed = value;
+                    _subscribed = value;
 
-                    if (this.subscribed)
+                    if (_subscribed)
                     {
-                        _notificationManager.ShowAsync(identifier, new NotificationContent
+                        Application.Current.Dispatcher.Invoke(() =>
                         {
-                            Title = "Information",
-                            Message = $"Waiting messages from \"{TopicName}\"",
-                            Type = NotificationType.Information
-                        }, "WindowArea", TimeSpan.MaxValue);
-                        _logger.LogInformation("Subscribed to \"{TopicName}\"", TopicName);
+                            _notificationManager?.ShowAsync(_identifier, new NotificationContent
+                            {
+                                Title = "Information",
+                                Message = $"Waiting messages from \"{TopicName}\"",
+                                Type = NotificationType.Information
+                            }, "WindowArea", TimeSpan.MaxValue);
+                        });
+                        _logger?.LogInformation("Subscribed to \"{TopicName}\"", TopicName);
                     }
                     else
                     {
-                        Dispatcher.CurrentDispatcher.Invoke(() => _notificationManager.CloseAsync(identifier));
-                        _logger.LogInformation("Unsubscribed from \"{TopicName}\"", TopicName);
+                        Dispatcher.CurrentDispatcher.Invoke(() =>
+                            _notificationManager?.CloseAsync(_identifier)
+                        );
+                        _logger?.LogInformation("Unsubscribed from \"{TopicName}\"", TopicName);
                     }
                     RaisePropertyChanged(nameof(Subscribed));
                 }
@@ -130,10 +197,7 @@ namespace KafkaTools.Models
         /// </remarks>
         public bool Updated
         {
-            get
-            {
-                return _updated;
-            }
+            get => _updated;
             set
             {
                 _updated = value;

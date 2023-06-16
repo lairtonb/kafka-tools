@@ -6,15 +6,14 @@
         mc:Ignorable="d"
         
         xmlns:local="clr-namespace:KafkaTools"
+        xmlns:models="clr-namespace:KafkaTools.Models"
         xmlns:vm="clr-namespace:KafkaTools.ViewModels"
         
         xmlns:valueConverters="clr-namespace:KafkaTools.ValueConverters"
         xmlns:notifications="clr-namespace:Notifications.Wpf.Core.Controls;assembly=Notifications.Wpf.Core"
-        xmlns:sys="clr-namespace:System;assembly=mscorlib"        
         xmlns:designTime="clr-namespace:KafkaTools.Data.DesignTime"
-        
-        xmlns:Media="clr-namespace:System.Windows.Media;assembly=PresentationCore"
-        xmlns:Animations="clr-namespace:System.Windows.Media.Animation;assembly=PresentationCore"
+
+        d:DataContext="{d:DesignInstance Type=vm:KafkaViewModel, IsDesignTimeCreatable=false}"
         
         ResizeMode="CanResizeWithGrip"
         Title="Kafka Tools" 
@@ -27,15 +26,12 @@
                 <ResourceDictionary Source="DataGridStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <local:TimestampConverter x:Key="TimestampConverter" />
-            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-            <valueConverters:BooleanNegationConverter x:Key="BooleanNegationConverter" />
             <valueConverters:ConnectionStatusConnectingToVisibilityConverter x:Key="ConnectingToVisibilityConverter" />
-            <valueConverters:ConnectionStatusConnectingToBooleanConverter x:Key="ConnectingToBooleanConverter" />
-            <valueConverters:ConnectionStatusToBooleanConverter x:Key="ConnectionStatusToBooleanConverter" />
             <valueConverters:IsOkToSubscribeConverter x:Key="IsOkToSubscribeConverter" />
             <BitmapImage x:Key="PlayImage" UriSource="Images/icons8-play-16.png" />
             <BitmapImage x:Key="PlayImageDisabled" UriSource="Images/PlayDisabled.png" />
             <BitmapImage x:Key="PauseImage" UriSource="Images/icons8-pause-16.png" />
+            <designTime:DesignTimeDataContext x:Key="DesignTimeData" />
         </ResourceDictionary>
     </Window.Resources>    
     <Grid>
@@ -78,9 +74,12 @@
                                 </Label>
                             </DockPanel>
                             <Grid Grid.Row="1" Background="#EEE">
-                                <Label Content="Environment" HorizontalAlignment="Left" Margin="11,10,0,0" VerticalAlignment="Top" Padding="0,5,5,5"/>
-                                <ComboBox Name="environmentsComboBox"
-                                          ItemsSource="{Binding Path=Environments}" 
+                                <Label Content="Environment" 
+                                       HorizontalAlignment="Left" 
+                                       Margin="11,10,0,0" 
+                                       VerticalAlignment="Top" 
+                                       Padding="0,5,5,5"/>
+                                <ComboBox ItemsSource="{Binding Path=Environments}" 
                                           SelectedItem="{Binding Path=SelectedEnvironment, ValidatesOnDataErrors=True}"
                                           DisplayMemberPath="EnvironmentName"
                                           HorizontalAlignment="Left" 
@@ -117,7 +116,7 @@
                                             RenderTransformOrigin="0.5, 0.5" 
                                             Visibility="{Binding Status, Converter={StaticResource ConnectingToVisibilityConverter}, FallbackValue=Collapsed}">
                                             <Image.RenderTransform>
-                                                <RotateTransform x:Name="noFreeze" />
+                                                <RotateTransform x:Name="NoFreeze" />
                                             </Image.RenderTransform>
                                             <Image.Triggers>
                                                 <EventTrigger RoutedEvent="Loaded">
@@ -152,24 +151,6 @@
                                         </TextBlock>
                                     </StackPanel>
                                 </Button>
-                                <Label HorizontalAlignment="Left"                                        
-                                       VerticalAlignment="Top" 
-                                       Margin="235,36,10,0"
-                                       MinWidth="80"     
-                                       MinHeight="22"
-                                       DataContext="{Binding Path=SelectedEnvironment}"
-                                       Content="{Binding Path=EnvironmentName}" 
-                                       Visibility="Collapsed"
-                                       Padding="0,5,5,5"/>
-                                <Button Name="manageEnvironmentsButton" 
-                                        Content="Manage ..." 
-                                        d:Visibility="Collapsed" 
-                                        Visibility="Collapsed"
-                                        HorizontalAlignment="Right"
-                                        Margin="10,36,10,0" 
-                                        Height="22"
-                                        Padding="8,0,8,0"
-                                        VerticalAlignment="Top"  />
                                 <Label Content="Topics" 
                                        HorizontalAlignment="Left" 
                                        VerticalAlignment="Top" 
@@ -177,52 +158,64 @@
                                        Margin="10,63,10,0" 
                                        Padding="0,5,5,5"/>
                                 <TextBox Name="FilterTopicsTextBox" 
-                                         Margin="10,89,10,0"                              
+                                         Margin="10,89,10,0"
                                          TextWrapping="Wrap" 
                                          VerticalAlignment="Top"
-                                         DataContext="{Binding Path=SelectedEnvironment}"
-                                         Text="{Binding TopicNameFilter, UpdateSourceTrigger=PropertyChanged}"
+                                         Text="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}, Path=TopicNameFilter,  UpdateSourceTrigger=PropertyChanged}"
                                          />
-                                <ListBox DataContext="{Binding Path=SelectedEnvironment}"
-                                         ItemsSource="{Binding TopicsCollectionView}"
-                                         SelectedItem="{Binding SelectedTopic}"                                         
-                                         d:ItemsSource="{d:SampleData ItemCount=5}" 
-                                         Margin="10,112,10,10">
-                                    <ListBox.ItemContainerStyle>
-                                        <Style TargetType="ListBoxItem">
-                                            <Setter Property="Content" Value="{Binding TopicName}" />
-                                            <Setter Property="Margin" Value="1,2,1,1"/>
-                                            <Setter Property="Background" Value="White" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Subscribed}" Value="True">
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Path=Updated}" Value="True">
-                                                    <Setter Property="Background" Value="IndianRed" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Updated}" Value="True">
-                                                    <DataTrigger.EnterActions>
-                                                        <BeginStoryboard Name="MyBeginStoryboard">
-                                                            <Storyboard>
-                                                                <ColorAnimation
-                                                                    Storyboard.TargetProperty="(ListBoxItem.Background).(SolidColorBrush.Color)"
-                                                                    To="WhiteSmoke"
-                                                                    Duration="0:0:0.8" />
-                                                            </Storyboard>
-                                                        </BeginStoryboard>
-                                                    </DataTrigger.EnterActions>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Updated}" Value="False">
-                                                    <DataTrigger.EnterActions>
-                                                        <SkipStoryboardToFill BeginStoryboardName="MyBeginStoryboard" />
-                                                        <StopStoryboard BeginStoryboardName="MyBeginStoryboard" />
-                                                        <RemoveStoryboard BeginStoryboardName="MyBeginStoryboard" />
-                                                    </DataTrigger.EnterActions>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ListBox.ItemContainerStyle>
-                                </ListBox>
+                                <Grid x:Name="EnvironmentGrid" 
+                                      DataContext="{Binding Path=SelectedEnvironment}">
+                                    <Grid.Resources>
+                                        <CollectionViewSource x:Key="TopicsCollectionViewSource" Source="{Binding Topics}" />
+                                    </Grid.Resources>
+                                    <ListBox ItemsSource="{Binding Source={StaticResource TopicsCollectionViewSource}}"
+                                             SelectedItem="{Binding SelectedTopic}"
+                                             Margin="10,112,10,10">
+                                        <d:ListBox.ItemsSource>
+                                            <x:Array Type="models:TopicInfo">
+                                                <models:TopicInfo TopicName="Topic 1" Updated="True" Subscribed="False" />
+                                                <models:TopicInfo TopicName="Topic 2" Updated="True" Subscribed="True" />
+                                                <models:TopicInfo TopicName="Topic 3" Updated="True" Subscribed="False" />
+                                                <models:TopicInfo TopicName="Topic 4" Updated="True" Subscribed="False" />
+                                                <models:TopicInfo TopicName="Topic 5" Updated="True" Subscribed="False" />
+                                            </x:Array>
+                                        </d:ListBox.ItemsSource>
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem" >
+                                                <Setter Property="Content" Value="{Binding TopicName}" />
+                                                <Setter Property="Margin" Value="1,2,1,1"/>
+                                                <Setter Property="Background" Value="White" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Subscribed}" Value="True">
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Updated}" Value="True">
+                                                        <Setter Property="Background" Value="IndianRed" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Updated}" Value="True">
+                                                        <DataTrigger.EnterActions>
+                                                            <BeginStoryboard Name="MyBeginStoryboard">
+                                                                <Storyboard>
+                                                                    <ColorAnimation
+                                                                        Storyboard.TargetProperty="(ListBoxItem.Background).(SolidColorBrush.Color)"
+                                                                        To="WhiteSmoke"
+                                                                        Duration="0:0:0.8" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </DataTrigger.EnterActions>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Updated}" Value="False">
+                                                        <DataTrigger.ExitActions>
+                                                            <SkipStoryboardToFill BeginStoryboardName="MyBeginStoryboard" />
+                                                            <StopStoryboard BeginStoryboardName="MyBeginStoryboard" />
+                                                            <RemoveStoryboard BeginStoryboardName="MyBeginStoryboard" />
+                                                        </DataTrigger.ExitActions>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                    </ListBox>
+                                </Grid>
                             </Grid>
                         </Grid>
                         <GridSplitter Grid.Column="1" Background="#FFF" Width="5" HorizontalAlignment="Stretch"/>
@@ -247,23 +240,26 @@
                                 </Grid.ColumnDefinitions>
                                 <Button 
                                     Grid.Column="0"
-                                    Name="subscribeToTopic" 
                                     Width="21" 
-                                    Height="21"                                         
+                                    Height="21" 
                                     Margin="10 0 0 0" 
-                                    HorizontalAlignment="Left" 
-                                    VerticalAlignment="Center"                                         
-                                    Click="SubscribeToTopic_Click"
-                                    d:IsEnabled="False">
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    DataContext="{Binding Path=SelectedEnvironment}"
+                                    Command="{Binding SubscribeCommand}">
+                                    <Button.Style>
+                                        <!-- https://stackoverflow.com/questions/4423746/wpf-mvvm-disable-a-buttons-state-when-the-viewmodel-behind-the-usercontrol-is -->
+                                        <Style TargetType="{x:Type Button}">
+                                            <Style.Triggers>
+                                                <Trigger Property="Command" Value="{x:Null}">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
                                     <d:Button.Content>
                                         <Image Source="Images/icons8-play-16.png" />
                                     </d:Button.Content>
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource IsOkToSubscribeConverter}">
-                                            <Binding Path="SelectedEnvironment.Status"/>
-                                            <Binding Path="SelectedEnvironment.SelectedTopic" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
                                     <Button.Content>
                                         <Image Opacity="0.9">
                                             <Image.Style>
@@ -273,13 +269,13 @@
                                                         <DataTrigger Value="False">
                                                             <DataTrigger.Binding>
                                                                 <MultiBinding Converter="{StaticResource IsOkToSubscribeConverter}">
-                                                                    <Binding Path="SelectedEnvironment.Status"/>
-                                                                    <Binding Path="SelectedEnvironment.SelectedTopic" />
+                                                                    <Binding Path="Status"/>
+                                                                    <Binding Path="SelectedTopic" />
                                                                 </MultiBinding>
                                                             </DataTrigger.Binding>
                                                             <Setter Property="Source" Value="{StaticResource PlayImageDisabled}" />
                                                         </DataTrigger>
-                                                        <DataTrigger Binding="{Binding SelectedEnvironment.SelectedTopic.Subscribed}" Value="True">
+                                                        <DataTrigger Binding="{Binding SelectedTopic.Subscribed, FallbackValue=False}" Value="True">
                                                             <Setter Property="Source" Value="{StaticResource PauseImage}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
@@ -287,17 +283,18 @@
                                             </Image.Style>
                                         </Image>
                                     </Button.Content>
-                                </Button>                                
+                                </Button>
                                 <Label 
-                                    Grid.Column="1"                                    
+                                    Grid.Column="1"
                                     HorizontalAlignment="Left" 
                                     Margin="10,0,10,0" 
-                                    MinWidth="100"                                    
+                                    MinWidth="100"
                                     VerticalAlignment="Center" 
                                     Padding="0,5,5,5">
                                     <TextBlock 
                                         d:Text="development-sample-topic-name-that-is-very-long-internal"
-                                        Text="{Binding SelectedEnvironment.SelectedTopic.TopicName}" 
+                                        DataContext="{Binding Path=SelectedEnvironment}"
+                                        Text="{Binding SelectedTopic.TopicName, FallbackValue=''}" 
                                         TextTrimming="CharacterEllipsis" />
                                 </Label>
                             </Grid>
@@ -305,23 +302,26 @@
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
-                                        <RowDefinition Height="24"/>                                        
                                     </Grid.RowDefinitions>
+                                    <Grid.DataContext>
+                                        <Binding Path="SelectedEnvironment" FallbackValue="{x:Null}" />
+                                    </Grid.DataContext>
                                     <DataGrid Grid.Row="0" 
-                                    Name="dataGridMessages" 
-                                    AutoGenerateColumns="False"
-                                    ItemsSource="{Binding Path=SelectedEnvironment.SelectedTopic.Messages}"
-                                    SelectedItem="{Binding SelectedMessage}"
-                                    Style="{StaticResource {x:Type DataGrid}}"
-                                    Margin="10,0,10,10" 
-                                    SelectionMode="Single"
-                                    CanUserAddRows="False" 
-                                    CanUserDeleteRows="False" 
-                                    CanUserResizeRows="False" 
-                                    CanUserSortColumns="False"
-                                    AlternationCount="2" 
-                                    HorizontalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" 
-                                    VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}">
+                                            Name="DataGridMessages" 
+                                            AutoGenerateColumns="False"
+                                            DataContext="{Binding Path=SelectedTopic}"
+                                            ItemsSource="{Binding Path=Messages}"
+                                            SelectedItem="{Binding SelectedMessage}"
+                                            Style="{StaticResource {x:Type DataGrid}}"
+                                            Margin="10,0,10,10" 
+                                            SelectionMode="Single"
+                                            CanUserAddRows="False" 
+                                            CanUserDeleteRows="False" 
+                                            CanUserResizeRows="False" 
+                                            CanUserSortColumns="False"
+                                            AlternationCount="2" 
+                                            HorizontalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" 
+                                            VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="Auto" />
                                             <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="Auto" />
@@ -371,9 +371,9 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </DataGrid.RowStyle>
+                                        <!-- Design-time data items -->
                                         <d:DataGrid.ItemsSource>
                                             <x:Array Type="{x:Type local:JsonMessage}">
-                                                <!-- Design-time data items -->
                                                 <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="1" Value="5/30/2023 8:15:51 PM" />
                                                 <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="2" Value="3" />
                                                 <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="3" Value="3" />
@@ -381,16 +381,9 @@
                                                 <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="5" Value="3" />
                                                 <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="6" Value="3" />
                                                 <local:JsonMessage Key="07bc538c-b0f2-41b3-b049-01ba724d31c3" Offset="7" Value="3" />
-                                                <!-- Add more items as needed -->
                                             </x:Array>
                                         </d:DataGrid.ItemsSource>
                                     </DataGrid>
-                                    <CheckBox Grid.Row="1"
-                                              x:Name="autoScrollCheckBox" 
-                                              Content="Auto Scroll" 
-                                              Margin="10,0,0,0"
-                                              Checked="AutoScrollCheckBox_Checked" 
-                                              Unchecked="AutoScrollCheckBox_Unchecked" />
                                 </Grid>
                             </Grid>
                         </Grid>
@@ -401,6 +394,9 @@
                                 <RowDefinition Height="28"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
+                            <Grid.DataContext>
+                                <Binding Path="SelectedEnvironment.SelectedTopic" FallbackValue="{x:Null}" />
+                            </Grid.DataContext>
                             <DockPanel Grid.Row="0">
                                 <Label DockPanel.Dock="Top" Background="LightSlateGray" Foreground="White" FontWeight="Medium">
                                     Selected Message
@@ -409,26 +405,28 @@
                             <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FFF9F9F9">
                                 <Button Width="21" Height="21"                                         
                                         Margin="10 0 0 0" 
+                                        DataContext="{Binding SelectedMessage, FallbackValue=null}"
                                         Command="{Binding CopyMessageCommand}"
-                                        CommandParameter="{Binding ElementName=textBoxMessage}">
+                                        CommandParameter="{Binding ElementName=TextBoxMessage}">
+                                    <Button.Style>
+                                        <!-- https://stackoverflow.com/questions/4423746/wpf-mvvm-disable-a-buttons-state-when-the-viewmodel-behind-the-usercontrol-is -->
+                                        <Style TargetType="{x:Type Button}">
+                                            <Style.Triggers>
+                                                <Trigger Property="Command" Value="{x:Null}">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
                                     <Image Width="16" Height="16" 
                                            VerticalAlignment="Center" 
                                            HorizontalAlignment="Center"
                                            Source="Images/352285_content_copy_icon.png" />
                                 </Button>
-                                <Button 
-                                    Grid.Column="0"
-                                    Name="PublishTo" 
-                                    Content="Publish To ..." 
-                                    VerticalAlignment="Center" 
-                                    Visibility="Collapsed"
-                                    Width="100" 
-                                    Margin="10,0,0,0"
-                                />
                             </StackPanel>
                             <Grid Grid.Row="2" Background="#FFF9F9F9">
                                 <TextBox 
-                                    Name="textBoxMessage"
+                                    Name="TextBoxMessage"
                                     TextWrapping="Wrap"
                                     IsReadOnly="True"
                                     Text="{Binding 
@@ -436,7 +434,11 @@
                                         Mode=TwoWay, 
                                         UpdateSourceTrigger=PropertyChanged}"
                                     FontFamily="Consolas"
-                                    Margin="10,0,10,10"/>
+                                    Margin="10,0,10,10">
+                                    <d:TextBox.Text>
+                                        { "id": 12345, "name": "John Doe", "age": 30, "email": "johndoe@example.com" }
+                                    </d:TextBox.Text>
+                                </TextBox>
                             </Grid>
                         </Grid>
                     </Grid>
@@ -459,6 +461,7 @@
                     </DockPanel>
                     <DataGrid 
                         Grid.Row="1"
+                        Name="DataGridLogs"
                         AutoGenerateColumns="False" 
                         SelectionMode="Single" 
                         CanUserAddRows="False" 
@@ -467,9 +470,8 @@
                         AlternationCount="1" 
                         AlternatingRowBackground="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" 
                         HorizontalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}" 
-                        VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}"    
-                        ItemsSource="{Binding LogEntries}"
-                        >
+                        VerticalGridLinesBrush="{DynamicResource {x:Static SystemColors.ControlLightLightBrushKey}}"
+                        ItemsSource="{Binding ApplicationLogs, Source={StaticResource DesignTimeData}}">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" Width="Auto" />
                             <DataGridTextColumn Header="Level" Binding="{Binding LogLevel}" MinWidth="30" Width="Auto" />
@@ -490,7 +492,7 @@
         </TabControl>
         <StatusBar Grid.Row="1">
             <StatusBarItem>
-                <TextBlock Name="lblStatus" />
+                <TextBlock Name="StatusLabel" />
             </StatusBarItem>
         </StatusBar>
     </Grid>

@@ -1,10 +1,13 @@
 ﻿using Confluent.Kafka;
+using KafkaTools.ViewModels;
+using Notifications.Wpf.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 
 namespace KafkaTools
 {
@@ -73,6 +76,34 @@ namespace KafkaTools
         private void RaisePropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public MyCommand CopyMessageCommand
+        {
+            get
+            {
+                return new MyCommand((_) => true /***SelectedMessage != null*/, CopyMessage);
+            }
+        }
+
+        private async Task CopyMessage(TextBox textBox)
+        {
+            var selectionStart = textBox.SelectionStart;
+            var selectionLength = textBox.SelectionLength;
+
+            textBox.SelectAll();
+            textBox.Copy();
+
+            await Task.CompletedTask;
+            /* await _notificationManager.ShowAsync(new NotificationContent
+            {
+                Title = "Information",
+                Message = "Copied",
+                Type = NotificationType.Information
+            }, "WindowArea", expirationTime: TimeSpan.FromMilliseconds(1200)); */
+
+            textBox.SelectionStart = selectionStart;
+            textBox.SelectionLength = selectionLength;
         }
     }
 }

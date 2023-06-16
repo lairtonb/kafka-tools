@@ -16,6 +16,7 @@ using Confluent.Kafka;
 using KafkaTools.Services;
 using System.Runtime.CompilerServices;
 using System.Windows.Data;
+using KafkaTools.ViewModels;
 
 namespace KafkaTools.Models
 {
@@ -30,9 +31,10 @@ namespace KafkaTools.Models
             INotificationManager notificationManager,
             ILogger logger,
             EnvironmentSettings environmentSettings,
-            KafkaService? kafkaService,
+            KafkaService kafkaService,
             ILoggerFactory loggerFactory)
         {
+            // TODO Guard constructor params: https://docs.microsoft.com/en-us/dotnet/api/system.argumentnullexception?view=net-5.0
             EnvironmentName = environmentName;
             _notificationManager = notificationManager;
             _logger = logger;
@@ -50,10 +52,7 @@ namespace KafkaTools.Models
 
         public ConnectionStatus Status
         {
-            get
-            {
-                return this.status;
-            }
+            get => this.status;
             internal set
             {
                 if (this.status != value)
@@ -69,17 +68,14 @@ namespace KafkaTools.Models
             get
             {
                 return new AsyncDelegateCommand(ConnectCommandHandler, canExecute: () =>
-                {
-                    return this.Status == ConnectionStatus.Connected
-                        || this.Status == ConnectionStatus.Disconnected;
-                });
+                    this.Status is ConnectionStatus.Connected or ConnectionStatus.Disconnected);
             }
         }
 
         private async Task ConnectCommandHandler()
         {
             // TODO Show some progress indicator
-            // TODO Unsubscribe from all messagens from previous environment
+            // TODO Unsubscribe from all messages from previous environment
             // TODO Maybe use another visual representation in the future,
             //      like Guilherme did in Aptakube
 
@@ -102,16 +98,14 @@ namespace KafkaTools.Models
         {
             try
             {
-                App.Current.Dispatcher.Invoke(() =>
+                Application.Current.Dispatcher.Invoke(() =>
                 {
                     this.Status = ConnectionStatus.Connecting;
                 });
 
-                await Task.CompletedTask;
-
                 var topics = await _kafkaService.GetTopicsAsync(this.EnvironmentName);
 
-                App.Current.Dispatcher.Invoke(() =>
+                Application.Current.Dispatcher.Invoke(() =>
                 {
                     Topics.Clear();
 
@@ -119,28 +113,18 @@ namespace KafkaTools.Models
                     foreach (var topic in topics)
                     {
                         var topicLogger = _loggerFactory.CreateLogger(topic);
-                        App.Current.Dispatcher.Invoke(() =>
+                        Application.Current.Dispatcher.Invoke(() =>
                         {
                             Topics.Add(new TopicInfo(topic, _notificationManager, topicLogger));
                         });
                     }
-
-                    // Retrieves the default view associated with the Topics collection.
-                    // The default view is an object that provides functionalities for sorting,
-                    // filtering, and grouping data in a collection.
-                    // We currenty use this to filter the topics by name.
-                    TopicsCollectionView = CollectionViewSource.GetDefaultView(Topics);
-
-                    // TODO is this required here?
-                    // Updates the view based on any changes that might have
-                    // occurred in the underlying Topics collection.
-                    TopicsCollectionView.Refresh();
                 });
             }
             catch (KafkaException ex) when (ex.Error.IsLocalError)
             {
-                App.Current.Dispatcher.Invoke(() =>
+                Application.Current.Dispatcher.Invoke(() =>
                 {
+                    this.Status = ConnectionStatus.Disconnected;
                     _logger.LogError(ex, ex.Message);
                     _notificationManager.CloseAllAsync();
                     _notificationManager.ShowAsync(new NotificationContent
@@ -154,8 +138,9 @@ namespace KafkaTools.Models
             }
             catch (Exception ex)
             {
-                App.Current.Dispatcher.Invoke(() =>
+                Application.Current.Dispatcher.Invoke(() =>
                 {
+                    this.Status = ConnectionStatus.Disconnected;
                     _logger.LogError(ex, ex.Message);
                     _notificationManager.CloseAllAsync();
                     _notificationManager.ShowAsync(new NotificationContent
@@ -189,7 +174,7 @@ namespace KafkaTools.Models
 
         public ObservableCollection<TopicInfo> Topics
         {
-            get { return _topics; }
+            get => _topics;
             set
             {
                 if (_topics != value)
@@ -200,52 +185,11 @@ namespace KafkaTools.Models
             }
         }
 
-        private ICollectionView topicsCollectionView;
-
-        public ICollectionView TopicsCollectionView
-        {
-            get { return topicsCollectionView; }
-            set
-            {
-                if (topicsCollectionView != value)
-                {
-                    topicsCollectionView = value;
-                    RaisePropertyChanged(nameof(TopicsCollectionView));
-                }
-            }
-        }
-
-        private string topicNameFilter;
-
-        public string TopicNameFilter
-        {
-            get { return topicNameFilter; }
-            set
-            {
-                if (topicNameFilter != value)
-                {
-                    topicNameFilter = value;
-                    RaisePropertyChanged(nameof(TopicNameFilter));
-                    ApplyFilter();
-                }
-            }
-        }
-
-        private void ApplyFilter()
-        {
-            TopicsCollectionView.Filter = (item) =>
-            {
-                return string.IsNullOrEmpty(TopicNameFilter)
-                    || ((TopicInfo)item).TopicName.Contains(TopicNameFilter);
-            };
-            TopicsCollectionView.Refresh();
-        }
-
         private TopicInfo? _selectedTopic = default;
 
-        public TopicInfo SelectedTopic
+        public TopicInfo? SelectedTopic
         {
-            get { return _selectedTopic; }
+            get => _selectedTopic;
             set
             {
                 if (_selectedTopic == value)
@@ -259,7 +203,34 @@ namespace KafkaTools.Models
                 // TODO investigate if this is the better option
                 // Messages = _selectedEnvironment.SelectedTopic?.Messages
                 //    ?? new ObservableCollection<JsonMessage>();
+
+                // Forcing the CommandManager to raise the RequerySuggested event
+                // so that the SubscribeCommand can be reevaluated.
+                CommandManager.InvalidateRequerySuggested();
             }
+        }
+
+        public ICommand SubscribeCommand => new AsyncDelegateCommand(Subscribe, canExecute: () => SelectedTopic != null);
+
+        private Task Subscribe()
+        {
+            if (SelectedTopic != null)
+            {
+                if (!SelectedTopic.Subscribed)
+                {
+                    _kafkaService.Subscribe(SelectedTopic.MessagePublished);
+                    SelectedTopic.Subscribed = true;
+                    Task.Run(() => _kafkaService.StartConsumingAsync(this, SelectedTopic.TopicName));
+                }
+                else
+                {
+                    _kafkaService.Unsubscribe(SelectedTopic.MessagePublished);
+                    SelectedTopic.Subscribed = false;
+                    Task.Run(() => _kafkaService.StopConsumingAsync(this, SelectedTopic.TopicName));
+                }
+            }
+
+            return Task.CompletedTask;
         }
 
         /*

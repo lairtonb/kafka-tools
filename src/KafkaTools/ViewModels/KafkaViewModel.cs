@@ -35,8 +35,8 @@ namespace KafkaTools.ViewModels
 
         public event EventHandler? CanExecuteChanged
         {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
         }
 
         public MyCommand(CanExecute canExecute, Execute execute)
@@ -90,17 +90,15 @@ namespace KafkaTools.ViewModels
             this.LoadEnvironments();
         }
 
-        #region Environments
-
         public void LoadEnvironments()
         {
             _environments = new ObservableCollection<EnvironmentInfo>();
             foreach (var kvp in _appSettings.Environments)
             {
-                string environmentName = kvp.Key;
-                EnvironmentSettings environmentSettings = kvp.Value;
+                var environmentName = kvp.Key;
+                var environmentSettings = kvp.Value;
 
-                EnvironmentInfo environmentInfo = environmentSettings switch
+                var environmentInfo = environmentSettings switch
                 {
                     UserSecretsEnvironmentSettings userSecretsSettings => new EnvironmentInfo(
                         environmentName, _notificationManager, _loggerFactory.CreateLogger(environmentName),
@@ -123,19 +121,13 @@ namespace KafkaTools.ViewModels
 
         private ObservableCollection<EnvironmentInfo> _environments;
 
-        public virtual ObservableCollection<EnvironmentInfo> Environments
-        {
-            get
-            {
-                return _environments;
-            }
-        }
+        public virtual ObservableCollection<EnvironmentInfo> Environments => _environments;
 
-        private EnvironmentInfo _selectedEnvironment;
+        private EnvironmentInfo? _selectedEnvironment;
 
-        public EnvironmentInfo SelectedEnvironment
+        public EnvironmentInfo? SelectedEnvironment
         {
-            get { return _selectedEnvironment; }
+            get => _selectedEnvironment;
             set
             {
                 if (value == _selectedEnvironment)
@@ -146,135 +138,5 @@ namespace KafkaTools.ViewModels
                 RaisePropertyChanged(nameof(SelectedEnvironment));
             }
         }
-
-        #endregion
-
-        #region Topics
-
-        public ICommand SubscribeToSelectedTopicCommand
-        {
-            get
-            {
-                return new AsyncDelegateCommand(SubscribeToTopic, canExecute: () =>
-                {
-                    return _selectedEnvironment != null &&
-                        _selectedEnvironment.SelectedTopic != null;
-                });
-            }
-        }
-
-        private async Task SubscribeToTopic()
-        {
-            if (!_selectedEnvironment.SelectedTopic.Subscribed)
-            {
-                _kafkaService.Subscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
-                _selectedEnvironment.SelectedTopic.Subscribed = true;
-                await _kafkaService.StartConsumingAsync(SelectedEnvironment, _selectedEnvironment.SelectedTopic.TopicName);
-            }
-            else
-            {
-                _kafkaService.Unsubscribe(_selectedEnvironment.SelectedTopic.MessagePublished);
-                _selectedEnvironment.SelectedTopic.Subscribed = false;
-
-                // TODO implement stop consuming if it is last topic?
-            }
-        }
-
-        #endregion
-
-        #region Messages
-
-        private ObservableCollection<JsonMessage> _messagesOfSelectedTopic = new();
-
-        public ObservableCollection<JsonMessage> Messages
-        {
-            get => _messagesOfSelectedTopic;
-            set
-            {
-                _messagesOfSelectedTopic = value;
-                RaisePropertyChanged(nameof(Messages));
-            }
-        }
-
-        private JsonMessage _selectedMessage;
-
-        public JsonMessage SelectedMessage
-        {
-            get { return _selectedMessage; }
-            set
-            {
-                if (_selectedMessage == value)
-                {
-                    return;
-                }
-
-                _selectedMessage = value;
-                RaisePropertyChanged(nameof(SelectedMessage));
-
-                // Reformat the Json message for better visualization
-                using var parsedMessage = JsonDocument.Parse(_selectedMessage.Value);
-                // TODO try passing the message directly, see if it works
-                // SelectedMessageText = JsonSerializer.Serialize(_selectedMessage.Value,
-                SelectedMessageText = JsonSerializer.Serialize(parsedMessage,
-                    new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    });
-            }
-        }
-
-        public MyCommand CopyMessageCommand
-        {
-            get
-            {
-                return new MyCommand((_) => SelectedMessage != null, CopyMessage);
-            }
-        }
-
-        private async Task CopyMessage(TextBox textBox)
-        {
-            var selectionStart = textBox.SelectionStart;
-            var selectionLength = textBox.SelectionLength;
-
-            textBox.SelectAll();
-            textBox.Copy();
-
-            await _notificationManager.ShowAsync(new NotificationContent
-            {
-                Title = "Information",
-                Message = "Copied",
-                Type = NotificationType.Information
-            }, "WindowArea", expirationTime: TimeSpan.FromMilliseconds(1200));
-
-            textBox.SelectionStart = selectionStart;
-            textBox.SelectionLength = selectionLength;
-        }
-
-        private string _selectedMessageText;
-
-        public string SelectedMessageText
-        {
-            get { return _selectedMessageText; }
-            set
-            {
-                if (_selectedMessageText == value)
-                {
-                    return;
-                }
-                _selectedMessageText = value;
-
-                _selectedMessage.Value = _selectedMessageText;
-
-                RaisePropertyChanged(nameof(SelectedMessageText));
-
-                // Forcing the CommandManager to raise the RequerySuggested event
-                CommandManager.InvalidateRequerySuggested();
-
-                // Before, was doing this
-                // RaisePropertyChanged(nameof(CopyMessageCommand));
-            }
-        }
-
-        #endregion
     }
 }

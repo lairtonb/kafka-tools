@@ -58,7 +58,7 @@ namespace KafkaTools.Services
             _cancellationTokenSource = new CancellationTokenSource();
         }
 
-        private event EventHandler<MessageEventArgs> MessagePublished;
+        private event EventHandler<MessageEventArgs>? MessagePublished;
 
         public void Subscribe(EventHandler<MessageEventArgs> messagePublishedEventHandler)
         {
@@ -108,7 +108,7 @@ namespace KafkaTools.Services
             {
                 using (var adminClient = new AdminClientBuilder(adminConfig).Build())
                 {
-                    var metadata = adminClient.GetMetadata(timeout: TimeSpan.FromSeconds(60));
+                    var metadata = adminClient.GetMetadata(timeout: TimeSpan.FromMinutes(60));
                     var topicNames = metadata.Topics
                         .Where(t => !t.Topic.StartsWith("_")
                             && !t.Topic.StartsWith("docker-")
@@ -217,6 +217,7 @@ namespace KafkaTools.Services
                         else
                         {
                             // Discard the regitryId, since we are not considering it at this moment
+                            stream.Position = stream.Position - 1;
                             _ = IPAddress.NetworkToHostOrder(reader.ReadInt32());
                         }
                     }
@@ -238,8 +239,11 @@ namespace KafkaTools.Services
                     message.Timestamp = consumeResult.Message.Timestamp;
                     message.IsNew = true;
 
-                    MessagePublished?.Invoke(this, new MessageEventArgs(consumeResult.Topic,
-                        consumeResult.Offset, message));
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessagePublished?.Invoke(this, new MessageEventArgs(consumeResult.Topic,
+                            consumeResult.Offset, message));
+                    });
                 }
             }
             catch (Exception ex)
@@ -342,13 +346,10 @@ namespace KafkaTools.Services
             }
             finally
             {
-                if (!_dispatcher.CheckAccess())
+                await _dispatcher.BeginInvoke(async () =>
                 {
-                    await _dispatcher.BeginInvoke((Action)async delegate
-                    {
-                        await _notificationManager.CloseAsync(identifier);
-                    });
-                }
+                    await _notificationManager.CloseAsync(identifier);
+                });
             }
 
             await _notificationManager.ShowAsync(new NotificationContent
