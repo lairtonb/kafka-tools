@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace KafkaTools.Common
@@ -49,7 +50,6 @@ namespace KafkaTools.Common
         private bool _isExecuting;
 
 
-
         public AsyncDelegateCommand(Func<Task> execute)
             : this(execute, null)
         {
@@ -61,7 +61,11 @@ namespace KafkaTools.Common
             _canExecute = canExecute ?? (() => true);
         }
 
-        public event EventHandler? CanExecuteChanged;
+        public event EventHandler? CanExecuteChanged
+        {
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
+        }
 
         public bool CanExecute(object? parameter)
         {
@@ -87,9 +91,9 @@ namespace KafkaTools.Common
             }
         }
 
-        public void RaiseCanExecuteChanged()
+        private static void RaiseCanExecuteChanged()
         {
-            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 }
