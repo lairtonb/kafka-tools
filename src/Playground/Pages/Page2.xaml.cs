@@ -17,6 +17,12 @@ using System.Windows.Shapes;
 
 namespace Playground.Pages
 {
+    public class Fruit
+    {
+        public string Name { get; set; }
+        public string Color { get; set; }
+    }
+
     /// <summary>
     /// Interaction logic for Page2.xaml
     /// </summary>
@@ -27,54 +33,57 @@ namespace Playground.Pages
             InitializeComponent();
 
             // Add some initial items to the collection
-            MyItems.Add("Apple");
-            MyItems.Add("Banana");
-            MyItems.Add("Cherry");
-            MyItems.Add("Grape");
+            MyItems.Add(new Fruit { Name = "Apple", Color = "Red" });
+            MyItems.Add(new Fruit { Name = "Banana", Color = "Yellow" });
+            MyItems.Add(new Fruit { Name = "Cherry", Color = "Red" });
+            MyItems.Add(new Fruit { Name = "Grape", Color = "Red" });
+            MyItems.Add(new Fruit { Name = "Lychee", Color = "Pink" });
+
+
 
             FilteredItemsView = CollectionViewSource.GetDefaultView(MyItems);
 
             DataContext = this;
         }
 
-        private ObservableCollection<string> myItems = new();
-        public ObservableCollection<string> MyItems
+        private ObservableCollection<Fruit> _myItems = new();
+        public ObservableCollection<Fruit> MyItems
         {
-            get { return myItems; }
+            get => _myItems;
             set
             {
-                if (myItems != value)
+                if (_myItems != value)
                 {
-                    myItems = value;
+                    _myItems = value;
                     OnPropertyChanged(nameof(MyItems));
                     OnPropertyChanged(nameof(FilteredItemsView));
                 }
             }
         }
 
-        private ICollectionView myItemsView;
+        private ICollectionView _myItemsView;
         public ICollectionView FilteredItemsView
         {
-            get { return myItemsView; }
+            get => _myItemsView;
             set
             {
-                if (myItemsView != value)
+                if (_myItemsView != value)
                 {
-                    myItemsView = value;
+                    _myItemsView = value;
                     OnPropertyChanged(nameof(FilteredItemsView));
                 }
             }
         }
 
-        private string filterText;
+        private string _filterText;
         public string FilterText
         {
-            get { return filterText; }
+            get => _filterText;
             set
             {
-                if (filterText != value)
+                if (_filterText != value)
                 {
-                    filterText = value;
+                    _filterText = value;
                     OnPropertyChanged(nameof(FilterText));
                     ApplyFilter();
                 }
@@ -83,8 +92,17 @@ namespace Playground.Pages
 
         private void ApplyFilter()
         {
-            FilteredItemsView.Filter = item => string.IsNullOrEmpty(FilterText) || ((string)item).Contains(FilterText);
-            FilteredItemsView.Refresh();
+            var myCollectionViewSource = (CollectionViewSource)FindResource("MyCollectionViewSource");
+            myCollectionViewSource.Filter += (s, e) =>
+            {
+                if (e.Item is not Fruit item)
+                {
+                    e.Accepted = false;
+                    return;
+                }
+                e.Accepted = item.Name.Contains(FilterText);
+            };
+            myCollectionViewSource.View.Refresh();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

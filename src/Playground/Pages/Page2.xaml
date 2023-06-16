@@ -10,12 +10,15 @@
       Title="Page2"
       HorizontalAlignment="Stretch"
       d:DataContext="{d:DesignInstance local:Page2}">
+    <Page.Resources>
+        <CollectionViewSource x:Key="MyCollectionViewSource" Source="{Binding MyItems}" />
+    </Page.Resources>
     <Grid Background="White">
         <Grid.RowDefinitions>
             <RowDefinition Height="32" />
             <RowDefinition Height="32" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="300" />
+            <RowDefinition Height="32" />
         </Grid.RowDefinitions>
         <TextBlock 
                 Grid.Row="0"                
@@ -31,19 +34,19 @@
         <ListBox       
                 Grid.Row="2"
                 Margin="10,0,10,10"
-                ItemsSource="{Binding FilteredItemsView}">
+                ItemsSource="{Binding Source={StaticResource MyCollectionViewSource}}">
             <!-- Content Template for ListBox Item -->
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBlock Text="{Binding}" />
+                    <TextBlock Text="{Binding Path=Name}" />
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
         <Grid Grid.Row="3" Background="AntiqueWhite">
             <Button Content="Button" 
-                    Width="200" 
-                    Height="28"
-                    Name="btnImgBrush" 
+                    Width="100" 
+                    Height="24"
+                    Name="BtnImgBrush" 
                     HorizontalAlignment="Left"
                     Margin="10,0,0,0"
                     Background="LightGray">
