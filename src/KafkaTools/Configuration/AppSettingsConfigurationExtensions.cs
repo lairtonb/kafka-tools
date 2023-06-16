@@ -20,7 +20,7 @@ namespace Microsoft.Extensions.Configuration
             foreach (var childSection in section.GetChildren().OrderBy(c =>
             {
                 // Get Children seem to returns ordered alphabetically
-                // We provide a way for the appsettingsFile author to enforce a specific order.
+                // We provide a way for the appsettings file author to enforce a specific order.
                 var order = c.GetSection("Order")?.Get<int>() ?? 0;
                 return order;
             }))

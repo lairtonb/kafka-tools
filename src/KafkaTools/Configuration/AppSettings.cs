@@ -18,7 +18,7 @@ namespace KafkaTools.Configuration
         public string BrokerUrl { get; set; }
         public string AuthenticationType { get; set; }
         public SaslMechanism? SaslMechanism { get; set; }
-        public SecurityProtocol? SecurityProtocol { get; internal set; }
+        public SecurityProtocol? SecurityProtocol { get; set; }
     }
 
     public class UserSecretsEnvironmentSettings : EnvironmentSettings
