@@ -12,21 +12,14 @@ namespace KafkaTools.Data.DesignTime
 {
     public class DesignTimeDataContext
     {
-        public ObservableCollection<TopicInfo> DesignTimeTopics { get; set; } =
+        public ObservableCollection<JsonMessage> DesignTimeMessages { get; set; } =
             new()
             {
-                new TopicInfo("Topic 1", null, null),
-                new TopicInfo("Topic 1", null, null),
-            };
-
-        public ObservableCollection<JsonMessage> DesignTimeMessages { get; set; } =
-            new ObservableCollection<JsonMessage>()
-            {
-                        new JsonMessage()
-                        {
-                            Key = "Sample Key",
-                            Timestamp = new Timestamp(DateTime.Now),
-                        }
+                new JsonMessage
+                {
+                    Key = "Sample Key",
+                    Timestamp = new Timestamp(DateTime.Now),
+                }
             };
 
         public ObservableCollection<LogEntry> ApplicationLogs { get; set; } =

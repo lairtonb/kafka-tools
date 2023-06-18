@@ -20,6 +20,7 @@ using KafkaTools.Models;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Notifications.Wpf.Core;
@@ -124,17 +125,17 @@ namespace KafkaTools.Services
             return topics;
         }
 
-        private readonly Dictionary<string, string> currentTopics = new();
+        private readonly Dictionary<string, string> _currentTopics = new();
 
-        public async Task StopConsumingAsync(EnvironmentInfo selectedSourceEnvironment, string selectedTopic)
+        public async Task StopConsumingAsync(string environmentName, string selectedTopic, AutoOffsetReset selectedAutoOffsetReset)
         {
             // Get consumer from cache or new consumer
-            var consumer = await GetConsumerAsync(selectedSourceEnvironment.EnvironmentName);
+            var consumer = await GetConsumerAsync(environmentName, selectedAutoOffsetReset);
 
             // Remove topic from current topics
-            if (currentTopics.ContainsKey(selectedTopic))
+            if (_currentTopics.ContainsKey(selectedTopic))
             {
-                currentTopics.Remove(selectedTopic);
+                _currentTopics.Remove(selectedTopic);
             }
 
             // Update the topic subscription.
@@ -142,19 +143,19 @@ namespace KafkaTools.Services
             // the new subscription will replace it.
             // If the new subscription list is empty, it is
             // treated the same as Unsubscribe.
-            consumer.Subscribe(currentTopics.Select(t => t.Value));
+            consumer.Subscribe(_currentTopics.Select(t => t.Value));
         }
 
-        public async Task StartConsumingAsync(EnvironmentInfo selectedSourceEnvironment, string selectedTopic)
+        public async Task StartConsumingAsync(string environmentName, string selectedTopic, AutoOffsetReset selectedAutoOffsetReset)
         {
-            var consumer = await GetConsumerAsync(selectedSourceEnvironment.EnvironmentName);
+            var consumer = await GetConsumerAsync(environmentName, selectedAutoOffsetReset);
 
             try
             {
-                if (!currentTopics.ContainsKey(selectedTopic))
+                if (!_currentTopics.ContainsKey(selectedTopic))
                 {
-                    currentTopics.Add(selectedTopic, selectedTopic);
-                    consumer.Subscribe(currentTopics.Select(t => t.Value));
+                    _currentTopics.Add(selectedTopic, selectedTopic);
+                    consumer.Subscribe(_currentTopics.Select(t => t.Value));
                 }
 
                 while (true)
@@ -183,24 +184,13 @@ namespace KafkaTools.Services
                         continue;
                     }
 
-                    /***
-                     * Required because of Confluent Schema Registry framing
-                    var message = Regex.Replace(_selectedMessage.Value, @"^[^{]*?(?={)", string.Empty,
-                        RegexOptions.Multiline | RegexOptions.CultureInvariant);
-
-                    var temp = JsonConvert.DeserializeObject(consumeResult.Message.Value);
-                    SelectedMessageText = JsonConvert.SerializeObject(temp, Formatting.Indented);
-                    */
-
                     using var stream = new MemoryStream(consumeResult.Message.Value);
                     using var reader = new BinaryReader(stream);
 
-                    // Should just ignore first 5 bytes?                
+                    // Just first 5 bytes for now (Confluent Schema Registry framing)                
                     var magicByte = reader.ReadByte();
                     if (magicByte != ConfluentConstants.MagicByte)
                     {
-                        // throw new InvalidDataException($"Expecting data with Confluent Schema Registry framing.
-                        // Magic byte was {consumeResult.Message.Value[0]}, expecting {ConfluentConstants.MagicByte}");
                         stream.Position = 0;
                     }
                     else
@@ -216,14 +206,14 @@ namespace KafkaTools.Services
                         }
                         else
                         {
-                            // Discard the regitryId, since we are not considering it at this moment
-                            stream.Position = stream.Position - 1;
+                            // Discard the registryId, since we are not considering it at this moment
+                            stream.Position -= 1;
                             _ = IPAddress.NetworkToHostOrder(reader.ReadInt32());
                         }
                     }
 
                     var streamReader = new StreamReader(stream);
-                    var valueString = streamReader.ReadToEnd();
+                    var valueString = await streamReader.ReadToEndAsync();
 
                     var message = new JsonMessage
                     {
@@ -248,7 +238,7 @@ namespace KafkaTools.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "An error occurred while consuming Kafka messages");
                 await _dispatcher.Invoke(() => _notificationManager.CloseAllAsync());
                 await _notificationManager.ShowAsync(new NotificationContent
                 {
@@ -278,7 +268,7 @@ namespace KafkaTools.Services
                 KeyVaultEnvironmentSettings environmentSettings => await GetKeyVaultEnvSettingsAsync(environmentSettings),
                 UserSecretsEnvironmentSettings userSecretsEnvironmentSettings => await GetUserSecretsEnvironmentSettings(userSecretsEnvironmentSettings),
                 EnvironmentSettings => (string.Empty, string.Empty),
-                _ => throw new ArgumentException("Invalid environment", nameof(environment))
+                _ => throw new ArgumentException("Invalid environmentName", nameof(environment))
             };
 
             var envSettings = new EnvSettings()
@@ -300,7 +290,7 @@ namespace KafkaTools.Services
         /// <summary>
         /// Get settings from user secrets
         /// </summary>
-        private Task<(string key, string secret)> GetUserSecretsEnvironmentSettings(UserSecretsEnvironmentSettings userSecretsEnvironmentSettings)
+        private static Task<(string key, string secret)> GetUserSecretsEnvironmentSettings(UserSecretsEnvironmentSettings userSecretsEnvironmentSettings)
         {
             var configurationBuilder = new ConfigurationBuilder();
             configurationBuilder.AddUserSecrets(userSecretsEnvironmentSettings.UserSecretsId);
@@ -362,18 +352,19 @@ namespace KafkaTools.Services
             return (key, secret);
         }
 
-        private readonly Dictionary<string, IConsumer<string, byte[]>> _consumers = new();
+        private readonly Dictionary<string, IConsumer<string, byte[]>> _existingConsumers = new();
 
-        private async Task<IConsumer<string, byte[]>> GetConsumerAsync(string selectedSourceEnvironment)
+        private async Task<IConsumer<string, byte[]>> GetConsumerAsync(string selectedSourceEnvironmentName, AutoOffsetReset selectedAutoOffsetReset)
         {
-            if (_consumers.ContainsKey(selectedSourceEnvironment))
+            var environmentNamePlusAutoOffsetResetCompositeKey = $"{selectedSourceEnvironmentName}-{selectedAutoOffsetReset}";
+            if (_existingConsumers.ContainsKey(environmentNamePlusAutoOffsetResetCompositeKey))
             {
-                return _consumers[selectedSourceEnvironment];
+                return _existingConsumers[selectedSourceEnvironmentName];
             }
 
             try
             {
-                var envSettings = await GetEnvSettingsAsync(selectedSourceEnvironment!);
+                var envSettings = await GetEnvSettingsAsync(selectedSourceEnvironmentName!);
 
                 var consumerConfig = new ConsumerConfig();
 
@@ -404,7 +395,7 @@ namespace KafkaTools.Services
                        GroupId = $"ci-tooling-webhookeventadapter-worker-lairton-local",
                     - Not sure about if other brokers have similar rules.
                     */
-                    GroupId = $"{selectedSourceEnvironment.ToLowerInvariant()}-tooling-messageviewer-worker-local",
+                    GroupId = $"{selectedSourceEnvironmentName.ToLowerInvariant()}-tooling-messageviewer-worker-local",
 
                     /*
                     Automatically and periodically commit offsets in the background. Note: setting
@@ -443,12 +434,13 @@ namespace KafkaTools.Services
                     is retrieved by consuming messages and checking 'message->err'. default: largest
                     importance: high  
                     */
-                    AutoOffsetReset = AutoOffsetReset.Earliest,
+                    AutoOffsetReset = selectedAutoOffsetReset,
+                    //// AutoOffsetReset.Earliest,
                     //// AutoOffsetReset = AutoOffsetReset.Latest;
 
                     /*
                     Emit RD_KAFKA_RESP_ERR__PARTITION_EOF event whenever the consumer reaches the
-                    end of a partition. default: false importance: low                     
+                    end of a partition. default: false importance: low
                     */
                     EnablePartitionEof = true,
 
@@ -480,8 +472,7 @@ namespace KafkaTools.Services
                             Message = $"Error occurred, reason: {error.Code.GetReason()}, {error.Reason}",
                             Type = NotificationType.Error
                         }, "WindowArea");
-                    }
-                    )
+                    })
                     /****
                     .SetPartitionsAssignedHandler((c, partitions) =>
                     {
@@ -491,7 +482,7 @@ namespace KafkaTools.Services
                     */
                     .Build();
 
-                _consumers.Add(selectedSourceEnvironment, consumer);
+                _existingConsumers.Add(environmentNamePlusAutoOffsetResetCompositeKey, consumer);
 
                 return consumer;
             }

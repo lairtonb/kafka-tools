@@ -28,6 +28,7 @@
             <local:TimestampConverter x:Key="TimestampConverter" />
             <valueConverters:ConnectionStatusConnectingToVisibilityConverter x:Key="ConnectingToVisibilityConverter" />
             <valueConverters:IsOkToSubscribeConverter x:Key="IsOkToSubscribeConverter" />
+            <valueConverters:BooleanNegationConverter x:Key="BooleanNegationConverter" />
             <BitmapImage x:Key="PlayImage" UriSource="Images/icons8-play-16.png" />
             <BitmapImage x:Key="PlayImageDisabled" UriSource="Images/PlayDisabled.png" />
             <BitmapImage x:Key="PauseImage" UriSource="Images/icons8-pause-16.png" />
@@ -219,20 +220,35 @@
                             </Grid>
                         </Grid>
                         <GridSplitter Grid.Column="1" Background="#FFF" Width="5" HorizontalAlignment="Stretch"/>
-                        <Grid Column="2">
+                        <Grid Column="2" DataContext="{Binding Path=SelectedEnvironment}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="28"/>
                                 <RowDefinition Height="28"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <DockPanel Grid.Row="0">
-                                <Label DockPanel.Dock="Top" 
-                                       Background="LightSlateGray" 
+                            <Grid Grid.Row="0" Background="LightSlateGray" >
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Column="0" 
+                                       Margin="0 0 0 0"
                                        Foreground="White" 
                                        FontWeight="Medium">
                                     Messages
                                 </Label>
-                            </DockPanel>
+                                <Label 
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Left" 
+                                    Margin="0 0 10 0"
+                                    Foreground="White" >
+                                    <TextBlock 
+                                        d:Text="development-sample-topic-name-that-is-very-long-internal"
+                                        DataContext="{Binding Path=SelectedTopic, FallbackValue='{x:Null}'}"
+                                        Text="{Binding TopicName, StringFormat=(\{0\}), FallbackValue='{x:Null}'}" 
+                                        TextTrimming="CharacterEllipsis" />
+                                </Label>
+                            </Grid>
                             <Grid Grid.Row="1" Background="#FFF9F9F9">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="40"/>
@@ -245,7 +261,7 @@
                                     Margin="10 0 0 0" 
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Center"
-                                    DataContext="{Binding Path=SelectedEnvironment}"
+                                    DataContext="{Binding Path=SelectedTopic, FallbackValue='{x:Null}'}"
                                     Command="{Binding SubscribeCommand}">
                                     <Button.Style>
                                         <!-- https://stackoverflow.com/questions/4423746/wpf-mvvm-disable-a-buttons-state-when-the-viewmodel-behind-the-usercontrol-is -->
@@ -266,16 +282,10 @@
                                                 <Style TargetType="Image">
                                                     <Setter Property="Source" Value="{StaticResource PlayImage}" />
                                                     <Style.Triggers>
-                                                        <DataTrigger Value="False">
-                                                            <DataTrigger.Binding>
-                                                                <MultiBinding Converter="{StaticResource IsOkToSubscribeConverter}">
-                                                                    <Binding Path="Status"/>
-                                                                    <Binding Path="SelectedTopic" />
-                                                                </MultiBinding>
-                                                            </DataTrigger.Binding>
+                                                        <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=Button}}" Value="False">
                                                             <Setter Property="Source" Value="{StaticResource PlayImageDisabled}" />
                                                         </DataTrigger>
-                                                        <DataTrigger Binding="{Binding SelectedTopic.Subscribed, FallbackValue=False}" Value="True">
+                                                        <DataTrigger Binding="{Binding Subscribed, FallbackValue=False}" Value="True">
                                                             <Setter Property="Source" Value="{StaticResource PauseImage}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
@@ -284,28 +294,22 @@
                                         </Image>
                                     </Button.Content>
                                 </Button>
-                                <Label 
-                                    Grid.Column="1"
-                                    HorizontalAlignment="Left" 
-                                    Margin="10,0,10,0" 
-                                    MinWidth="100"
-                                    VerticalAlignment="Center" 
-                                    Padding="0,5,5,5">
-                                    <TextBlock 
-                                        d:Text="development-sample-topic-name-that-is-very-long-internal"
-                                        DataContext="{Binding Path=SelectedEnvironment}"
-                                        Text="{Binding SelectedTopic.TopicName, FallbackValue=''}" 
-                                        TextTrimming="CharacterEllipsis" />
-                                </Label>
+                                <ComboBox Grid.Column="1"
+                                          Margin="0 4 10 4"
+                                          MinWidth="130"
+                                          MaxWidth="200"
+                                          HorizontalAlignment="Left"
+                                          DataContext="{Binding Path=SelectedTopic}"
+                                          ItemsSource="{Binding AllowedAutoOffsetResetValues, FallbackValue='{x:Null}'}"
+                                          SelectedValue="{Binding SelectedAutoOffsetReset, Mode=TwoWay, FallbackValue='{x:Null}'}" 
+                                          IsEnabled="{Binding Subscribed, Converter={StaticResource BooleanNegationConverter}, FallbackValue=False}"
+                                          />
                             </Grid>
                             <Grid Grid.Row="2" Background="#FFF9F9F9">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <Grid.DataContext>
-                                        <Binding Path="SelectedEnvironment" FallbackValue="{x:Null}" />
-                                    </Grid.DataContext>
                                     <DataGrid Grid.Row="0" 
                                             Name="DataGridMessages" 
                                             AutoGenerateColumns="False"
@@ -405,7 +409,7 @@
                             <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#FFF9F9F9">
                                 <Button Width="21" Height="21"                                         
                                         Margin="10 0 0 0" 
-                                        DataContext="{Binding SelectedMessage, FallbackValue=null}"
+                                        DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:MainWindow}}"
                                         Command="{Binding CopyMessageCommand}"
                                         CommandParameter="{Binding ElementName=TextBoxMessage}">
                                     <Button.Style>
@@ -433,11 +437,9 @@
                                         SelectedMessageText, 
                                         Mode=TwoWay, 
                                         UpdateSourceTrigger=PropertyChanged}"
+                                    d:Text="{}&#123;&#x0a;&#032;&#032;&quot;id&quot;: 12345,&#x0a;&#032;&#032;&quot;name&quot;: &quot;John Doe&quot;,&#x0a;&#032;&#032;&quot;age&quot;: 30,&#x0a;&#032;&#032;&quot;email&quot;: &quot;johndoe@example.com&quot;&#x0a;&#125;"
                                     FontFamily="Consolas"
                                     Margin="10,0,10,10">
-                                    <d:TextBox.Text>
-                                        { "id": 12345, "name": "John Doe", "age": 30, "email": "johndoe@example.com" }
-                                    </d:TextBox.Text>
                                 </TextBox>
                             </Grid>
                         </Grid>

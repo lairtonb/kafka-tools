@@ -48,16 +48,16 @@ namespace KafkaTools.Models
 
         public string EnvironmentName { get; private set; }
 
-        private ConnectionStatus status = ConnectionStatus.Disconnected;
+        private ConnectionStatus _status = ConnectionStatus.Disconnected;
 
         public ConnectionStatus Status
         {
-            get => this.status;
+            get => this._status;
             internal set
             {
-                if (this.status != value)
+                if (this._status != value)
                 {
-                    this.status = value;
+                    this._status = value;
                     RaisePropertyChanged(nameof(Status));
                 }
             }
@@ -115,7 +115,13 @@ namespace KafkaTools.Models
                         var topicLogger = _loggerFactory.CreateLogger(topic);
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            Topics.Add(new TopicInfo(topic, _notificationManager, topicLogger));
+                            Topics.Add(new TopicInfo(
+                                this.EnvironmentName,
+                                topic,
+                                _notificationManager,
+                                topicLogger,
+                                _kafkaService)
+                            );
                         });
                     }
                 });
@@ -125,7 +131,7 @@ namespace KafkaTools.Models
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     this.Status = ConnectionStatus.Disconnected;
-                    _logger.LogError(ex, ex.Message);
+                    _logger.LogError(ex, "An error occurred connecting to Kafka.");
                     _notificationManager.CloseAllAsync();
                     _notificationManager.ShowAsync(new NotificationContent
                     {
@@ -141,7 +147,7 @@ namespace KafkaTools.Models
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     this.Status = ConnectionStatus.Disconnected;
-                    _logger.LogError(ex, ex.Message);
+                    _logger.LogError(ex, "An error occurred connecting to Kafka.");
                     _notificationManager.CloseAllAsync();
                     _notificationManager.ShowAsync(new NotificationContent
                     {
@@ -200,59 +206,11 @@ namespace KafkaTools.Models
 
                 RaisePropertyChanged(nameof(SelectedTopic));
 
-                // TODO investigate if this is the better option
-                // Messages = _selectedEnvironment.SelectedTopic?.Messages
-                //    ?? new ObservableCollection<JsonMessage>();
-
                 // Forcing the CommandManager to raise the RequerySuggested event
                 // so that the SubscribeCommand can be reevaluated.
                 CommandManager.InvalidateRequerySuggested();
             }
         }
-
-        public ICommand SubscribeCommand => new AsyncDelegateCommand(Subscribe, canExecute: () => SelectedTopic != null);
-
-        private Task Subscribe()
-        {
-            if (SelectedTopic != null)
-            {
-                if (!SelectedTopic.Subscribed)
-                {
-                    _kafkaService.Subscribe(SelectedTopic.MessagePublished);
-                    SelectedTopic.Subscribed = true;
-                    Task.Run(() => _kafkaService.StartConsumingAsync(this, SelectedTopic.TopicName));
-                }
-                else
-                {
-                    _kafkaService.Unsubscribe(SelectedTopic.MessagePublished);
-                    SelectedTopic.Subscribed = false;
-                    Task.Run(() => _kafkaService.StopConsumingAsync(this, SelectedTopic.TopicName));
-                }
-            }
-
-            return Task.CompletedTask;
-        }
-
-        /*
-        public void SubscribeToSelectedTopic()
-        {
-            Task.Run(async () =>
-            {
-                if (!_selectedTopic.Subscribed)
-                {
-                    _kafkaService.Subscribe(_selectedTopic.MessagePublished);
-                    _selectedTopic.Subscribed = true;
-                    await _kafkaService.StartConsumingAsync(this, _selectedTopic.TopicName);
-                }
-                else
-                {
-                    _kafkaService.Unsubscribe(_selectedTopic.MessagePublished);
-                    _selectedTopic.Subscribed = false;
-                    // TODO implement stop consumign if it is last topic?
-                }
-            });
-        }
-        */
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

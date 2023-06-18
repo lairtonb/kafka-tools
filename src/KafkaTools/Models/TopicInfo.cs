@@ -9,8 +9,11 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using Confluent.Kafka;
+using KafkaTools.Common;
 using KafkaTools.Services;
 using KafkaTools.ViewModels;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Notifications.Wpf.Core;
 
@@ -28,21 +31,51 @@ namespace KafkaTools.Models
     {
         private readonly INotificationManager? _notificationManager;
         private readonly ILogger? _logger;
+        private readonly KafkaService _kafkaService;
 
-        public TopicInfo(string topicName,
+        public TopicInfo(
+            string environmentName,
+            string topicName,
             INotificationManager? notificationManager,
-            ILogger? logger)
+            ILogger? logger,
+            KafkaService kafkaService)
         {
+            EnvironmentName = environmentName;
             TopicName = topicName;
             _notificationManager = notificationManager;
             _logger = logger;
+            _kafkaService = kafkaService;
         }
 
         public TopicInfo() { }
 
+        public string EnvironmentName { get; private set; }
+
         public string TopicName { get; internal set; }
 
         public long Offset { get; private set; }
+
+        public List<AutoOffsetReset> AllowedAutoOffsetResetValues { get; } = new List<AutoOffsetReset>
+        {
+            AutoOffsetReset.Latest,
+            AutoOffsetReset.Earliest
+        };
+
+        private AutoOffsetReset _selectedAutoOffsetReset = AutoOffsetReset.Latest;
+
+        public AutoOffsetReset SelectedAutoOffsetReset
+        {
+            get => _selectedAutoOffsetReset;
+            set
+            {
+                if (_selectedAutoOffsetReset == value)
+                {
+                    return;
+                }
+                _selectedAutoOffsetReset = value;
+                RaisePropertyChanged(nameof(SelectedAutoOffsetReset));
+            }
+        }
 
         public InsertAtTopObservableCollection<JsonMessage> Messages { get; } = new();
 
@@ -146,6 +179,30 @@ namespace KafkaTools.Models
                         );
                     });
             }
+        }
+
+        public ICommand SubscribeCommand => new AsyncDelegateCommand(Subscribe,
+            canExecute: () => true
+        );
+
+        private Task Subscribe()
+        {
+            if (!Subscribed)
+            {
+                _kafkaService.Subscribe(MessagePublished);
+                Subscribed = true;
+                Task.Run(() => _kafkaService.StartConsumingAsync(EnvironmentName, TopicName, SelectedAutoOffsetReset));
+            }
+            else
+            {
+                _kafkaService.Unsubscribe(MessagePublished);
+                Subscribed = false;
+                Task.Run(() => _kafkaService.StopConsumingAsync(EnvironmentName, TopicName, SelectedAutoOffsetReset));
+            }
+
+            CommandManager.InvalidateRequerySuggested();
+
+            return Task.CompletedTask;
         }
 
         private bool _subscribed = false;

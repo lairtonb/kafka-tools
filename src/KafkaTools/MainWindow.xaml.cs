@@ -50,37 +50,23 @@ namespace KafkaTools
 
         public string? Password { get; private set; } = "Yx1DXhdNOZIx/nNTJZ5aF9wQTb/cbcYW43FaVixr/gGd0Ci+AN/y/DYoOecFBlCS";
 
-        private readonly KafkaService _kafkaServices;
         private readonly INotificationManager _notificationManager;
-        private readonly ObservableCollection<EnvironmentInfo> _environments;
-        private readonly KafkaViewModel _kafkaViewModel;
-        private readonly ILogger<MainWindow> _logger;
         private readonly CircularBufferSink _logBufferSink;
 
-        public MainWindow(KafkaService kafkaServices,
-            INotificationManager notificationManager,
-            CircularBufferSink logBufferSink,
+        public MainWindow(
             KafkaViewModel kafkaViewModel,
-            ILogger<MainWindow> logger)
+            INotificationManager notificationManager,
+            CircularBufferSink logBufferSink)
         {
             InitializeComponent();
 
-            _logBufferSink = logBufferSink;
-            _logBufferSink.PropertyChanged += LogBufferSink_PropertyChanged;
-
-            _kafkaServices = kafkaServices;
             _notificationManager = notificationManager;
-            _kafkaViewModel = kafkaViewModel;
-
-            _logger = logger;
-
-            // Need to think a little better how to handle this.
-            _environments = kafkaViewModel.Environments;
-            _selectedEnvironment = kafkaViewModel.Environments[0];
 
             DataContext = kafkaViewModel;
 
             // I still need to think better about this.
+            _logBufferSink = logBufferSink;
+            _logBufferSink.PropertyChanged += LogBufferSink_PropertyChanged;
             DataGridLogs.DataContext = _lazyLogEntries;
         }
 
@@ -142,6 +128,45 @@ namespace KafkaTools
 
         #endregion
 
+        #region Copy Message Text
+
+        public MyCommand CopyMessageCommand
+        {
+            get
+            {
+                return new MyCommand((parameter) =>
+                {
+                    if (!string.IsNullOrEmpty(parameter.Text))
+                    {
+                        return true;
+                    }
+                    return false;
+                }, CopyMessage);
+            }
+        }
+
+        private async Task CopyMessage(TextBox textBox)
+        {
+            var selectionStart = textBox.SelectionStart;
+            var selectionLength = textBox.SelectionLength;
+
+            textBox.SelectAll();
+            textBox.Copy();
+
+            await Task.CompletedTask;
+            await _notificationManager.ShowAsync(new NotificationContent
+            {
+                Title = "Information",
+                Message = "Copied to clipboard",
+                Type = NotificationType.Information
+            }, "WindowArea", expirationTime: TimeSpan.FromMilliseconds(1200));
+
+            textBox.SelectionStart = selectionStart;
+            textBox.SelectionLength = selectionLength;
+        }
+
+        #endregion
+
         #region INotifyPropertyChanged
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -169,22 +194,6 @@ namespace KafkaTools
             new(() => new ObservableCollection<LogEntry>());
 
         public IEnumerable<LogEntry> LogEntries => _logBufferSink?.LogEntries ?? _lazyLogEntries.Value;
-
-        #endregion
-
-        #region Copied
-
-        private ObservableCollection<JsonMessage> _selectedMessages = new();
-
-        public ObservableCollection<JsonMessage> Messages
-        {
-            get => _selectedMessages;
-            set
-            {
-                _selectedMessages = value;
-                RaisePropertyChanged(nameof(Messages));
-            }
-        }
 
         #endregion
 

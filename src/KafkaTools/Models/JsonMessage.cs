@@ -82,11 +82,18 @@ namespace KafkaTools
         {
             get
             {
-                return new MyCommand((_) => true /***SelectedMessage != null*/, CopyMessage);
+                return new MyCommand((parameter) =>
+                {
+                    if (!string.IsNullOrEmpty(parameter.Text))
+                    {
+                        return true;
+                    }
+                    return false;
+                }, CopyMessage);
             }
         }
 
-        private async Task CopyMessage(TextBox textBox)
+        private static async Task CopyMessage(TextBox textBox)
         {
             var selectionStart = textBox.SelectionStart;
             var selectionLength = textBox.SelectionLength;
@@ -95,7 +102,8 @@ namespace KafkaTools
             textBox.Copy();
 
             await Task.CompletedTask;
-            /* await _notificationManager.ShowAsync(new NotificationContent
+            /****
+            await _notificationManager.ShowAsync(new NotificationContent
             {
                 Title = "Information",
                 Message = "Copied",
